@@ -1,0 +1,334 @@
+import "server-only";
+
+import { addHours } from "@/lib/date";
+import { getSessionUser, hashToken } from "@/lib/auth";
+import { appEnv } from "@/lib/env";
+import { sendMail } from "@/lib/mailer";
+import { generateTripDocument, replanTripDocument } from "@/lib/planner";
+import { getRepository } from "@/lib/repository";
+import type {
+  CreateTripInput,
+  InviteMemberInput,
+  SessionUser,
+  TaskStatus,
+  TripDocument,
+  TripEvent,
+  TripMember,
+} from "@/lib/types";
+import { createAvatarText, createId } from "@/lib/utils";
+
+export async function getHomeBootstrap() {
+  const currentUser = await getSessionUser();
+  return getRepository().getBootstrap(currentUser);
+}
+
+export async function getTripWithViewer(tripId: string) {
+  const currentUser = await getSessionUser();
+  const trip = await getRepository().getTrip(tripId);
+
+  return {
+    trip,
+    currentUser,
+  };
+}
+
+export async function createTrip(input: CreateTripInput) {
+  const repository = getRepository();
+  const currentUser =
+    (await getSessionUser()) ?? getRepositoryFallbackUser();
+  const trip = await generateTripDocument(input, currentUser);
+  await repository.createTrip(trip);
+  return trip;
+}
+
+export async function updateTaskStatus(taskId: string, status: TaskStatus) {
+  const repository = getRepository();
+  const trip = await repository.findTripByTaskId(taskId);
+
+  if (!trip) {
+    throw new Error("Task not found.");
+  }
+
+  const viewer = (await getSessionUser()) ?? getRepositoryFallbackUser();
+  assertCanMutateTrip(trip, viewer, repository.mode === "demo");
+
+  const nextTasks = trip.tasks.map((task) =>
+    task.id === taskId ? { ...task, status } : task,
+  );
+  const eventTitle = status === "done" ? "任务已完成" : "任务被重新打开";
+
+  const nextTrip: TripDocument = {
+    ...trip,
+    tasks: nextTasks,
+    notifications: [
+      {
+        id: createId("notice"),
+        tripId: trip.id,
+        title: eventTitle,
+        body: `${viewer.name} 更新了任务状态。`,
+        createdAt: new Date().toISOString(),
+      },
+      ...trip.notifications,
+    ],
+    events: [
+      makeEvent({
+        type: "task_completed",
+        actorName: viewer.name,
+        title: eventTitle,
+        body: `${viewer.name} 更新了「${trip.tasks.find((task) => task.id === taskId)?.title ?? "任务"}」的状态。`,
+      }),
+      ...trip.events,
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+
+  await repository.saveTrip(nextTrip);
+  return nextTrip;
+}
+
+export async function inviteMember(tripId: string, input: InviteMemberInput) {
+  const repository = getRepository();
+  const trip = await repository.getTrip(tripId);
+
+  if (!trip) {
+    throw new Error("Trip not found.");
+  }
+
+  const viewer = (await getSessionUser()) ?? getRepositoryFallbackUser();
+  assertCanMutateTrip(trip, viewer, repository.mode === "demo");
+
+  const email = input.email.toLowerCase();
+  const existing = trip.members.find((member) => member.email === email);
+  if (existing) {
+    return trip;
+  }
+
+  const member: TripMember = {
+    id: createId("member"),
+    email,
+    name: input.name?.trim() || email.split("@")[0] || "新旅伴",
+    avatarText: createAvatarText(input.name?.trim() || email),
+    role: "traveler",
+    inviteStatus: "pending",
+    invitedAt: new Date().toISOString(),
+  };
+
+  const nextTrip: TripDocument = {
+    ...trip,
+    members: [...trip.members, member],
+    notifications: [
+      {
+        id: createId("notice"),
+        tripId: trip.id,
+        title: "已发出新的旅伴邀请",
+        body: `${viewer.name} 邀请了 ${member.name}。`,
+        createdAt: new Date().toISOString(),
+      },
+      ...trip.notifications,
+    ],
+    events: [
+      makeEvent({
+        type: "member_invited",
+        actorName: viewer.name,
+        title: "新增旅伴邀请",
+        body: `${member.name} 已被邀请加入本次行程。`,
+      }),
+      ...trip.events,
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+
+  await repository.saveTrip(nextTrip);
+  await sendMail({
+    to: email,
+    subject: `邀请加入 ${trip.name}`,
+    text: `${viewer.name} 邀请你加入 ${trip.name}。登录后即可查看和确认行程。`,
+    html: `<p>${viewer.name} 邀请你加入 <strong>${trip.name}</strong>。</p><p>登录后即可查看和确认行程。</p>`,
+  });
+
+  return nextTrip;
+}
+
+export async function acceptInvitation(tripId: string, inviteId: string) {
+  const repository = getRepository();
+  const trip = await repository.getTrip(tripId);
+
+  if (!trip) {
+    throw new Error("Trip not found.");
+  }
+
+  const viewer = await getSessionUser();
+  if (!viewer) {
+    throw new Error("请先登录后接受邀请。");
+  }
+
+  const nextMembers = trip.members.map((member) =>
+    member.id === inviteId && member.email.toLowerCase() === viewer.email.toLowerCase()
+      ? {
+          ...member,
+          inviteStatus: "confirmed" as const,
+          confirmedAt: new Date().toISOString(),
+          name: viewer.name,
+          avatarText: viewer.avatarText,
+        }
+      : member,
+  );
+
+  const nextTrip: TripDocument = {
+    ...trip,
+    members: nextMembers,
+    events: [
+      makeEvent({
+        type: "member_confirmed",
+        actorName: viewer.name,
+        title: "旅伴已确认加入",
+        body: `${viewer.name} 确认了本次同行邀请。`,
+      }),
+      ...trip.events,
+    ],
+    notifications: [
+      {
+        id: createId("notice"),
+        tripId: trip.id,
+        title: "新的旅伴已确认",
+        body: `${viewer.name} 已确认加入 ${trip.name}。`,
+        createdAt: new Date().toISOString(),
+      },
+      ...trip.notifications,
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+
+  await repository.saveTrip(nextTrip);
+  return nextTrip;
+}
+
+export async function triggerReplan(tripId: string) {
+  const repository = getRepository();
+  const trip = await repository.getTrip(tripId);
+  if (!trip) {
+    throw new Error("Trip not found.");
+  }
+
+  const viewer = (await getSessionUser()) ?? getRepositoryFallbackUser();
+  assertCanMutateTrip(trip, viewer, repository.mode === "demo");
+
+  const nextTrip = await replanTripDocument(trip);
+  await repository.saveTrip(nextTrip);
+  return nextTrip;
+}
+
+export async function runScheduledReplans() {
+  const repository = getRepository();
+  const trips = await repository.listTripsForCron();
+  let updated = 0;
+
+  for (const trip of trips) {
+    if (trip.stage === "planning" || trip.stage === "ongoing") {
+      const nextTrip = await replanTripDocument(trip);
+      await repository.saveTrip(nextTrip);
+      updated += 1;
+    }
+  }
+
+  return updated;
+}
+
+export async function requestMagicLink({
+  email,
+  name,
+  redirectTo,
+}: {
+  email: string;
+  name?: string;
+  redirectTo?: string;
+}) {
+  const token = crypto.randomUUID().replaceAll("-", "");
+  const now = new Date();
+  const repository = getRepository();
+
+  await repository.upsertMagicLink({
+    tokenHash: hashToken(token),
+    email: email.toLowerCase(),
+    name: name?.trim() || email.split("@")[0] || "旅伴",
+    redirectTo: redirectTo?.startsWith("/") ? redirectTo : "/",
+    expiresAt: addHours(now, 1).toISOString(),
+    createdAt: now.toISOString(),
+  });
+
+  const verifyUrl = new URL("/auth/verify", appEnv.appUrl);
+  verifyUrl.searchParams.set("token", token);
+  verifyUrl.searchParams.set("redirect", redirectTo?.startsWith("/") ? redirectTo : "/");
+
+  await sendMail({
+    to: email,
+    subject: "你的 Wander 登录链接",
+    text: `点击此链接登录：${verifyUrl.toString()}`,
+    html: `<p>点击下方链接登录 Wander：</p><p><a href="${verifyUrl.toString()}">${verifyUrl.toString()}</a></p>`,
+  });
+
+  return verifyUrl.toString();
+}
+
+export async function consumeMagicLink(token: string) {
+  const repository = getRepository();
+  const record = await repository.consumeMagicLink(hashToken(token));
+
+  if (!record) {
+    throw new Error("登录链接无效或已使用。");
+  }
+
+  if (new Date(record.expiresAt) < new Date()) {
+    throw new Error("登录链接已过期。");
+  }
+
+  return {
+    user: {
+      email: record.email,
+      name: record.name,
+      avatarText: createAvatarText(record.name),
+    } satisfies SessionUser,
+    redirectTo: record.redirectTo,
+  };
+}
+
+function makeEvent({
+  type,
+  actorName,
+  title,
+  body,
+}: {
+  type: TripEvent["type"];
+  actorName: string;
+  title: string;
+  body: string;
+}) {
+  return {
+    id: createId("event"),
+    type,
+    actorName,
+    title,
+    body,
+    createdAt: new Date().toISOString(),
+  } satisfies TripEvent;
+}
+
+function getRepositoryFallbackUser() {
+  return {
+    email: "aihe@example.com",
+    name: "Aihe",
+    avatarText: "你",
+  } satisfies SessionUser;
+}
+
+function assertCanMutateTrip(
+  trip: TripDocument,
+  viewer: SessionUser,
+  allowDemoFallback: boolean,
+) {
+  const isOwner = trip.ownerEmail.toLowerCase() === viewer.email.toLowerCase();
+
+  if (!isOwner && !allowDemoFallback) {
+    throw new Error("只有发起人可以修改行程。");
+  }
+}
