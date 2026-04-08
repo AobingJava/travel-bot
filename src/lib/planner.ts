@@ -112,10 +112,6 @@ export async function generateTripDocument(
   owner: SessionUser,
 ): Promise<TripDocument> {
   const llmEnabled = hasLlmConfig();
-  console.info("trip generation config", {
-    destination: input.destination,
-    llmEnabled,
-  });
 
   const generated = llmEnabled
     ? await generateWithModel(input).catch((error) => {
@@ -286,9 +282,6 @@ function createEvent({
 }
 
 async function generateWithModel(input: CreateTripInput): Promise<GeneratedTripPlan> {
-  console.info("generateWithModel start", {
-    destination: input.destination,
-  });
   const themeList = input.themes.map((theme) => getThemeLabel(theme)).join("、");
 
   const raw = await requestCompletionText({
@@ -430,10 +423,6 @@ function parsePlanCompletion(
   if (loose) {
     return loose;
   }
-
-  console.error("unsupported model plan payload", {
-    raw: raw.slice(0, 2400),
-  });
   throw new Error("Model plan response did not match supported structures.");
 }
 
@@ -610,6 +599,17 @@ function getLoosePhaseLists(payload: unknown) {
     };
   }
 
+  const todos = readArray(source, ["todos", "tasks"]);
+  if (todos.length) {
+    return todos.reduce((bucket, item) => {
+      const phaseName = normalizeLoosePhase(readString(item, ["phase"]));
+      if (phaseName) {
+        bucket[phaseName].push(item);
+      }
+      return bucket;
+    }, empty);
+  }
+
   return empty;
 }
 
@@ -662,20 +662,21 @@ function buildLooseDailySuggestions(
 
   if (source.length) {
     return source.slice(0, 5).map((item, index) => {
-      const summary =
+      const rawSummary =
         (typeof item === "string" ? item : null) ??
         readString(item, ["summary", "content", "description"]) ??
         duringTasks[index]?.routeHint ??
         duringTasks[index]?.notes ??
         "按当前路线推进即可。";
+      const summary = rawSummary
+        .replace(/^Day\s*\d+\s*\(([\d./-]+)\)\s*[:：]\s*/i, "")
+        .trim();
+      const dayMatch = rawSummary.match(/\(([\d./-]+)\)/);
 
       return {
         id: createId("day"),
         dayIndex: index,
-        label:
-          (typeof item === "string" ? item.match(/^([0-9]{1,2}[./-][0-9]{1,2})/)?.[1] : null) ??
-          readString(item, ["label", "date"]) ??
-          formatDateLabel(dates[Math.min(index, dates.length - 1)]),
+        label: dayMatch?.[1] ?? readString(item, ["label", "date"]) ?? formatDateLabel(dates[Math.min(index, dates.length - 1)]),
         title:
           readString(item, ["title"]) ??
           summary.split(/[，。]/)[0]?.slice(0, 24) ??
