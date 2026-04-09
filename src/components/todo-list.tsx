@@ -1,7 +1,6 @@
-import type { TripDocument } from "@/lib/types";
+import type { TripDocument, TripTask } from "@/lib/types";
 import { InviteMemberForm } from "@/components/invite-member-form";
-import { formatDateRange } from "@/lib/utils";
-import { getTripStageLabel } from "@/lib/utils";
+import { getTaskLabelClass, getTaskLabelText } from "@/lib/utils";
 
 export function TodoList({ trip, canInvite }: { trip: TripDocument; canInvite: boolean }) {
   const preTasks = trip.tasks.filter((task) => task.phase === "pre");
@@ -83,42 +82,51 @@ export function TodoList({ trip, canInvite }: { trip: TripDocument; canInvite: b
             {preTasks.map((task) => (
               <div
                 key={task.id}
-                className={`flex items-center gap-3 rounded-xl p-3 transition ${
+                className={`rounded-xl border p-3.5 transition hover:shadow-md ${
                   task.status === "done"
-                    ? "bg-emerald-50 border border-emerald-200"
-                    : "bg-slate-50 border border-slate-200"
+                    ? "bg-emerald-50 border-emerald-200"
+                    : "bg-white border-slate-200"
                 }`}
               >
-                <div
-                  className={`h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                    task.status === "done"
-                      ? "border-emerald-500 bg-emerald-500"
-                      : "border-slate-300"
-                  }`}
-                >
-                  {task.status === "done" && (
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={`text-[13px] font-medium ${
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
                       task.status === "done"
-                        ? "text-emerald-700 line-through"
-                        : "text-slate-700"
+                        ? "border-emerald-500 bg-emerald-500"
+                        : "border-slate-300"
                     }`}
                   >
-                    {task.title}
-                  </p>
-                  {task.notes && (
-                    <p className="text-[11px] text-slate-500 mt-0.5">{task.notes}</p>
-                  )}
+                    {task.status === "done" && (
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${getTaskLabelClass(task.label)}`}
+                      >
+                        {getTaskLabelText(task.label)}
+                      </span>
+                    </div>
+                    <p
+                      className={`text-[14px] font-semibold leading-snug ${
+                        task.status === "done"
+                          ? "text-slate-400 line-through"
+                          : "text-slate-950"
+                      }`}
+                    >
+                      {task.title}
+                    </p>
+                    {task.notes && (
+                      <p className="text-[12px] leading-5 text-slate-500 mt-1.5">{task.notes}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

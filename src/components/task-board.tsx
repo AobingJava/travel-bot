@@ -42,20 +42,6 @@ export function TaskBoard({
 
   return (
     <section className="space-y-3">
-      {/* 行程动态卡片 - 置顶 */}
-      <article className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
-        <div className="mb-3">
-          <h3 className="text-base font-bold text-slate-950">行程动态</h3>
-          <p className="text-sm text-slate-500 mt-1">{banner.body}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-mint-100 px-2.5 py-0.5 text-[11px] font-semibold text-mint-700">
-            AI
-          </span>
-          <span className="text-[11px] text-slate-400">{banner.updatedAt ? new Date(banner.updatedAt).toLocaleDateString("zh-CN") : ""}</span>
-        </div>
-      </article>
-
       <div className="rounded-2xl bg-slate-950 p-4 text-white shadow-[0_12px_40px_rgba(15,23,42,0.18)]">
         <div className="mb-3 flex items-center justify-between gap-4">
           <div className="space-y-0.5">

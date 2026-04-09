@@ -38,6 +38,8 @@ export function getThemeLabel(key: ThemeKey) {
 
 export function getTaskLabelText(label?: TripTask["label"]) {
   switch (label) {
+    case "suggestion":
+      return "建议";
     case "backup":
       return "备选";
     case "food":
@@ -55,6 +57,8 @@ export function getTaskLabelText(label?: TripTask["label"]) {
 
 export function getTaskLabelClass(label?: TripTask["label"]) {
   switch (label) {
+    case "suggestion":
+      return "bg-mint-100 text-mint-700";
     case "backup":
       return "bg-sky-100 text-sky-700";
     case "food":
