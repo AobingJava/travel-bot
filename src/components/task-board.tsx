@@ -5,13 +5,8 @@ import { useMemo, useState, useRef } from "react";
 import { ReplanButton } from "@/components/replan-button";
 import { TripMap } from "@/components/trip-map";
 import { TaskToggleButton } from "@/components/task-toggle-button";
-import type { TaskPhase, TripBanner, TripTask } from "@/lib/types";
-import {
-  getProgress,
-  getTaskLabelClass,
-  getTaskLabelText,
-  getTravelModeText,
-} from "@/lib/utils";
+import type { TaskPhase, TripTask } from "@/lib/types";
+import { getTaskLabelClass, getTaskLabelText, getTravelModeText } from "@/lib/utils";
 
 const phases: Array<{ key: TaskPhase; label: string }> = [
   { key: "during", label: "旅途打卡" },
@@ -21,11 +16,9 @@ const phases: Array<{ key: TaskPhase; label: string }> = [
 export function TaskBoard({
   tripId,
   tasks,
-  banner,
 }: {
   tripId: string;
   tasks: TripTask[];
-  banner: TripBanner;
 }) {
   const [activePhase, setActivePhase] = useState<TaskPhase>("during");
   const [taskPhotos, setTaskPhotos] = useState<Record<string, string[]>>({});
@@ -48,21 +41,6 @@ export function TaskBoard({
     },
     [activePhase, tasks, userCheckinTasks],
   );
-  const progress = getProgress(tasks, activePhase);
-
-  // 加载任务照片
-  useMemo(() => {
-    visibleTasks.forEach((task) => {
-      if (!taskPhotos[task.id]) {
-        fetch(`/api/trips/${tripId}/tasks/${task.id}/photos`)
-          .then((res) => res.json())
-          .then((data) => {
-            setTaskPhotos((prev) => ({ ...prev, [task.id]: data.photos || [] }));
-          })
-          .catch(console.error);
-      }
-    });
-  }, [visibleTasks, tripId]);
 
   const handlePhotoUpload = async (taskId: string, file: File) => {
     const formData = new FormData();
@@ -154,10 +132,7 @@ export function TaskBoard({
       <div className="rounded-2xl bg-slate-950 p-4 text-white shadow-[0_12px_40px_rgba(15,23,42,0.18)]">
         <div className="mb-3 flex items-center justify-between gap-4">
           <div className="space-y-0.5">
-            <span className="inline-flex rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
-              动态调整中
-            </span>
-            <h2 className="text-xl font-bold">TODO 看板</h2>
+            <h2 className="text-xl font-bold">打卡进度</h2>
           </div>
           <ReplanButton tripId={tripId} />
         </div>
@@ -180,33 +155,6 @@ export function TaskBoard({
               </button>
             );
           })}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-emerald-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(15,23,42,0.05)]">
-        <div className="mb-3 flex items-start justify-between gap-4">
-          <div className="space-y-0.5">
-            <p className="text-[13px] font-semibold text-slate-950">{banner.title}</p>
-            <p className="text-[12px] leading-5 text-slate-500">{banner.body}</p>
-          </div>
-          <span className="rounded-full bg-mint-100 px-2.5 py-0.5 text-[11px] font-semibold text-mint-700">
-            AI
-          </span>
-        </div>
-
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-[12px] text-slate-400">
-            <span>
-              {progress.completed} / {progress.total} 已完成
-            </span>
-            <span>{progress.percentage}%</span>
-          </div>
-          <div className="h-1.5 rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full bg-emerald-400 transition-all duration-500"
-              style={{ width: `${progress.percentage}%` }}
-            />
-          </div>
         </div>
       </div>
 
