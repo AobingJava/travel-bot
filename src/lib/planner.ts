@@ -1233,9 +1233,10 @@ function enumerateDates(startDate: string, endDate: string) {
   return dates;
 }
 
-function getFallbackMapPins(destination: string) {
+function getFallbackMapPins(destination: string): Array<{ lat: number; lng: number; name: string }> {
+
   // 日本目的地
-  if (destination.includes("日本") || destination.includes("东京")) {
+  if (destinationLower.includes("日本") || destinationLower.includes("东京")) {
     return [
       { lat: 35.6895, lng: 139.6917, name: "浅草寺" },
       { lat: 35.6762, lng: 139.6503, name: "涩谷 SKY" },
@@ -1243,7 +1244,7 @@ function getFallbackMapPins(destination: string) {
     ];
   }
 
-  if (destination.includes("大阪")) {
+  if (destinationLower.includes("大阪")) {
     return [
       { lat: 34.6941, lng: 135.5017, name: "大阪城公园" },
       { lat: 34.6687, lng: 135.5023, name: "道顿堀" },
@@ -1468,3 +1469,6 @@ function slugify(value: string) {
     .replace(/[^\p{L}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+// Export for checkin API
+export { getFallbackMapPins };

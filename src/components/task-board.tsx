@@ -29,10 +29,24 @@ export function TaskBoard({
 }) {
   const [activePhase, setActivePhase] = useState<TaskPhase>("during");
   const [taskPhotos, setTaskPhotos] = useState<Record<string, string[]>>({});
+  const [userCheckinTasks, setUserCheckinTasks] = useState<TripTask[]>([]);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+
+  const duringTasks = useMemo(
+    () => tasks.filter((task) => task.phase === "during"),
+    [tasks],
+  );
 
   const visibleTasks = useMemo(
-    () => tasks.filter((task) => task.phase === activePhase),
-    [activePhase, tasks],
+    () => {
+      const baseTasks = tasks.filter((task) => task.phase === activePhase);
+      // 在"旅途打卡"tab 显示 AI 生成的 during 任务 + 用户打卡任务
+      if (activePhase === "during") {
+        return [...baseTasks, ...userCheckinTasks];
+      }
+      return baseTasks;
+    },
+    [activePhase, tasks, userCheckinTasks],
   );
   const progress = getProgress(tasks, activePhase);
 
@@ -97,6 +111,44 @@ export function TaskBoard({
     }
   };
 
+  // 一键打卡：获取当前位置并找到最近的景点
+  const handleQuickCheckin = async () => {
+    setIsGettingLocation(true);
+
+    try {
+      // 获取当前定位
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 30000,
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+
+      // 调用 API 创建打卡点
+      const response = await fetch(`/api/trips/${tripId}/checkin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: latitude,
+          lng: longitude,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // 添加新生成的打卡任务
+        setUserCheckinTasks((prev) => [...prev, data.task]);
+      }
+    } catch (error) {
+      console.error("获取位置失败:", error);
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
+
   return (
     <section className="space-y-3">
       <div className="rounded-2xl bg-slate-950 p-4 text-white shadow-[0_12px_40px_rgba(15,23,42,0.18)]">
@@ -158,7 +210,7 @@ export function TaskBoard({
         </div>
       </div>
 
-      {activePhase === "during" && <TripMap tasks={tasks.filter((task) => task.phase === "during")} taskPhotos={taskPhotos} />}
+      {activePhase === "during" && <TripMap tasks={duringTasks} taskPhotos={taskPhotos} />}
 
       <div className="space-y-2">
         {visibleTasks.map((task) => (
@@ -170,8 +222,36 @@ export function TaskBoard({
             photos={taskPhotos[task.id] || []}
             onPhotoUpload={handlePhotoUpload}
             onPhotoDelete={handlePhotoDelete}
+            isUserCheckin={userCheckinTasks.some((t) => t.id === task.id)}
           />
         ))}
+
+        {/* 一键打卡按钮 */}
+        {activePhase === "during" && (
+          <button
+            onClick={handleQuickCheckin}
+            disabled={isGettingLocation}
+            className="w-full rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-4 text-center transition hover:bg-emerald-50 hover:border-emerald-400 active:scale-[0.98]"
+          >
+            <div className="flex items-center justify-center gap-2">
+              {isGettingLocation ? (
+                <>
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                  <span className="text-[14px] font-semibold text-emerald-700">正在获取位置...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="text-[14px] font-semibold text-emerald-700">一键打卡</span>
+                </>
+              )}
+            </div>
+            <p className="text-[11px] text-emerald-600/70 mt-1">基于当前位置生成附近景点打卡</p>
+          </button>
+        )}
       </div>
     </section>
   );
@@ -184,6 +264,7 @@ function TaskCard({
   photos,
   onPhotoUpload,
   onPhotoDelete,
+  isUserCheckin,
 }: {
   task: TripTask;
   tripId: string;
@@ -191,6 +272,7 @@ function TaskCard({
   photos: string[];
   onPhotoUpload: (taskId: string, file: File) => void;
   onPhotoDelete: (taskId: string, photoUrl: string) => void;
+  isUserCheckin?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -288,27 +370,19 @@ function TaskCard({
                 </button>
               </div>
 
-              {/* 照片缩略图 */}
+              {/* 照片缩略图 - 只读，无删除按钮 */}
               {photos.length > 0 && (
                 <div className="flex gap-1.5 mt-2 flex-wrap">
                   {photos.map((photoUrl, index) => (
                     <div
                       key={index}
-                      className="relative group w-12 h-12 rounded-lg overflow-hidden border border-slate-200"
+                      className="w-12 h-12 rounded-lg overflow-hidden border border-slate-200"
                     >
                       <img
                         src={photoUrl}
                         alt={`照片 ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
-                      <button
-                        onClick={() => onPhotoDelete(task.id, photoUrl)}
-                        className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                      >
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
                     </div>
                   ))}
                 </div>
