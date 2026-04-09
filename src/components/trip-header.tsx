@@ -1,7 +1,9 @@
-import Link from "next/link";
-
 import type { SessionUser, TripDocument } from "@/lib/types";
 import { formatDateRange, getTripStageLabel } from "@/lib/utils";
+
+const avatarUrls = [
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuCMKvbpNKJG8j1JmkB4GxJHVe-ax-wvSx3mtudIp3uZwCNJA_lzrsUT10qujZVcJ46kAYpYhuB2hYfdAmPHRsQhw4QDJ2z03UbcaJ_UqwD_Scb6OHuQw6sBe4eqcLCC_OifVCj-KE8zOVR99App8_2FCCJi0-dHo1lMO5XK_-BVOplltb11yxg0LMBkhJEVykzrIK1Bfr3_PjJ9zP-W-dSn7bZFhBYDSUcQHnVS8QVrWkVukXK9cFS_jJiJybWRyJVtk_6lAXI6Jd2h",
+];
 
 export function TripHeader({
   trip,
@@ -19,12 +21,21 @@ export function TripHeader({
         >
           ← 返回
         </Link>
-        <Link
-          href={`/auth?redirect=/trips/${trip.id}`}
-          className="rounded-full bg-slate-950 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-slate-800 active:scale-[0.97]"
-        >
-          {currentUser ? currentUser.name : "登录"}
-        </Link>
+        {currentUser ? (
+          <div className="w-8 h-8 rounded-full ring-2 ring-white/30 overflow-hidden">
+            <img
+              src={avatarUrls[0]}
+              alt={currentUser.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ) : (
+          <div className="w-8 h-8 rounded-full ring-2 ring-white/30 bg-white/20 flex items-center justify-center">
+            <svg className="w-4 h-4 text-white/60" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
+          </div>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-2xl bg-slate-950 p-5 text-white shadow-[0_12px_40px_rgba(15,23,42,0.18)]">
