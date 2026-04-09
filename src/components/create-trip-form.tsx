@@ -522,7 +522,7 @@ export function CreateTripForm() {
         disabled={isPending}
         className="group relative inline-flex items-center justify-center w-full px-8 py-4 font-headline font-bold text-white transition-all duration-200 bg-gradient-to-br from-orange-600 to-orange-400 rounded-lg shadow-xl hover:shadow-2xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <span className="text-lg">{isPending ? "AI 正在生成计划..." : "GO →"}</span>
+        <span className="text-lg">{isPending ? "AI 正在生成计划..." : "GO"}</span>
         <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
         </svg>
