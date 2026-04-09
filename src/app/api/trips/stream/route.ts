@@ -35,8 +35,7 @@ export async function POST(request: NextRequest) {
         const sendProgress = (step: PlanningStep, message?: string) => {
           controller.enqueue(
             encodeSSE({
-              type: "progress",
-              step,
+              type: "step",
               message: message || stepMessages[step],
             })
           );
