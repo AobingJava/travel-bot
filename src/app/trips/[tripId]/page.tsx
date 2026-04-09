@@ -40,7 +40,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
 
       {view === "todos" ? <TodoList trip={trip} canInvite={canInvite} /> : null}
       {view === "tasks" ? (
-        <TaskBoard tripId={trip.id} tasks={trip.tasks} />
+        <TaskBoard tripId={trip.id} tasks={trip.tasks} banner={trip.banner} />
       ) : null}
       {view === "companions" ? (
         <TripMembers trip={trip} />
