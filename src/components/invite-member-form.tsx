@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 import type { TripDocument } from "@/lib/types";
 import { getThemeLabel } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 function daysUntil(dateString: string): number {
   const now = new Date();
@@ -12,10 +12,30 @@ function daysUntil(dateString: string): number {
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
 
+// 从头文件中提取的头像 URL
+const avatarUrls = [
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuCh_LcVaiR78y_NwdjuEnImne9semxAlEQ272m37WfdDtJpXHoNgSlAjMi0JM1JGzRouUROKxfwUepaSJfGCm-s9Za8QUyrf5hZgSMH5waLSLKYLV52jZYIu1LHALIVX8afl4SffKud1t8iHbVVyJRnrp6NRv5RASPRwYTFR9Trz9lKw7mvyLUa5Js-BbokzPmsHVT7K_HFrgkcXdgXyGissigH5pvSXU_sLfYF1446OngQK9kwWj_H0Uuxz1zNDrbEeet2pJl0rtg5",
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuCQwUb-w5g57wLmkzYGflW9SWZZCcRXXb9aSqAZWesTUBwaE4fuyRTGeaTTLjpKxiRHLeBtOTp2oqM0o1PNPJMozm32sW9eMGI5QnQgdwWqsZTn8gwi-zs8nRjxaCNM-4d4H7iNXPq3b2oT3EbpXeXpUqA2O3xoJI8X2aFC6h_bnFhl6K8DY5rHrIkYn456IJcvfg7hTEW9KxJXWI2gUTZcitZuvxEy1xHV_MHrhzkycKZMinfaX_hQ4CjgHkzi5TIRhNRrA4YzG3Gz",
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuCFdypkcJxbwFOfFfca1Y0sx1AaAEFGqid5CEAuKTNysZHu5YDncd0tzm5DqBBsP8N4XRqDE-9MbSCR-oAbnKgcuVdZRl-fAc1IpP0VbYQh_1ufm0bPf4w6LynGcxMRPLjQFNRKvsxK611Rh1ORvNIyf0dp31NZxSGWFDtnEIWcT73JHxhjzsPuiXcC7PfjgrWwpznnyw5guH9Mybwtcjo3likSBtWRrhBuq8-sgT_7UXRzNh1Uq-3615kLPQ2ruqM8Vq0wFn6G1KSp",
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuCMKvbpNKJG8j1JmkB4GxJHVe-ax-wvSx3mtudIp3uZwCNJA_lzrsUT10qujZVcJ46kAYpYhuB2hYfdAmPHRsQhw4QDJ2z03UbcaJ_UqwD_Scb6OHuQw6sBe4eqcLCC_OifVCj-KE8zOVR99App8_2FCCJi0-dHo1lMO5XK_-BVOplltb11yxg0LMBkhJEVykzrIK1Bfr3_PjJ9zP-W-dSn7bZFhBYDSUcQHnVS8QVrWkVukXK9cFS_jJiJybWRyJVtk_6lAXI6Jd2h",
+];
+
+function getAvatarUrl(index: number): string {
+  return avatarUrls[index % avatarUrls.length];
+}
+
 export function InviteMemberForm({ trip }: { trip: TripDocument }) {
   const pathname = usePathname();
-  const [copied, setCopied] = useState(false);
+  const [hasInvited, setHasInvited] = useState(false);
   const daysLeft = daysUntil(trip.startDate);
+
+  useEffect(() => {
+    // 检查是否已经邀请过
+    const invited = localStorage.getItem(`trip_${trip.id}_invited`);
+    if (invited === "true") {
+      setHasInvited(true);
+    }
+  }, [trip.id]);
 
   const inviteUrl = typeof window !== "undefined"
     ? `${window.location.origin}${pathname}`
@@ -24,8 +44,8 @@ export function InviteMemberForm({ trip }: { trip: TripDocument }) {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(inviteUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      localStorage.setItem(`trip_${trip.id}_invited`, "true");
+      setHasInvited(true);
     } catch {
       // fallback
     }
@@ -38,10 +58,9 @@ export function InviteMemberForm({ trip }: { trip: TripDocument }) {
           title: "旅行邀请",
           url: inviteUrl,
         });
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        localStorage.setItem(`trip_${trip.id}_invited`, "true");
+        setHasInvited(true);
       } catch {
-        // user cancelled
         handleCopy();
       }
     } else {
@@ -76,37 +95,49 @@ export function InviteMemberForm({ trip }: { trip: TripDocument }) {
             </div>
           )}
         </div>
-        {/* 旅伴头像列表 */}
-        <div className="flex -space-x-2">
-          {visibleMembers.map((member, index) => (
-            <div
-              key={member.id}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-[11px] font-bold text-slate-600 ring-2 ring-white"
-              style={{ zIndex: 4 - index }}
-            >
-              {member.avatarText}
-            </div>
-          ))}
-          {remainingCount > 0 && (
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500 ring-2 ring-white"
-              style={{ zIndex: 0 }}
-            >
-              +{remainingCount}
-            </div>
-          )}
-        </div>
-        {/* 邀请好友按钮 - 放在进度条上方，靠右对齐 */}
-        <div className="flex justify-end pt-1">
+        {/* 旅伴头像列表和邀请按钮 - 同一行 */}
+        <div className="flex items-center justify-between">
+          <div className="flex -space-x-2">
+            {visibleMembers.map((member, index) => (
+              <div
+                key={member.id}
+                className="relative h-10 w-10 rounded-full ring-2 ring-white overflow-hidden bg-slate-100"
+                style={{ zIndex: 4 - index }}
+              >
+                {member.avatarUrl ? (
+                  <img
+                    src={member.avatarUrl}
+                    alt={member.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <img
+                    src={getAvatarUrl(index)}
+                    alt={member.name}
+                    className="h-full w-full object-cover"
+                  />
+                )}
+              </div>
+            ))}
+            {remainingCount > 0 && (
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500 ring-2 ring-white"
+                style={{ zIndex: 0 }}
+              >
+                +{remainingCount}
+              </div>
+            )}
+          </div>
+          {/* 邀请好友按钮 - 靠右对齐 */}
           <button
             type="button"
             onClick={handleShare}
-            className="bg-gradient-to-br from-orange-500 to-orange-600 text-white px-5 py-2.5 rounded-full shadow-lg flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
+            className="bg-gradient-to-br from-orange-500 to-orange-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all"
           >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7h4v3H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm-9 4c0-2.66 5.33-4 8-4s8 1.34 8 4v2H6v-2z"/>
             </svg>
-            <span className="text-sm font-bold">邀请好友</span>
+            <span className="text-xs font-bold">{hasInvited ? "已邀请" : "邀请好友"}</span>
           </button>
         </div>
         {/* 进度条 */}
@@ -117,13 +148,6 @@ export function InviteMemberForm({ trip }: { trip: TripDocument }) {
           />
         </div>
       </div>
-
-      {/* 复制成功提示 */}
-      {copied && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
-          链接已复制
-        </div>
-      )}
     </div>
   );
 }

@@ -57,10 +57,21 @@ export interface TripMember {
   email: string;
   name: string;
   avatarText: string;
+  avatarUrl?: string;
   role: MemberRole;
   inviteStatus: InviteStatus;
   invitedAt: string;
   confirmedAt?: string;
+}
+
+export interface MemberLocationStatus {
+  member: TripMember;
+  lat: number;
+  lng: number;
+  status: string;
+  statusType: "arrived" | "late" | "not-out" | "at-destination" | "unknown";
+  distance?: number; // 距离目的地或集合点的距离（米）
+  estimatedArrival?: number; // 预计到达时间（分钟）
 }
 
 export interface TripDailySuggestion {
