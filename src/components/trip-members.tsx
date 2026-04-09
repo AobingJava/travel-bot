@@ -327,7 +327,13 @@ export function TripMembers({
 
   return (
     <>
-      {/* 高德地图 JS API */}
+      {/* 高德地图 JS API - 安全密钥配置 */}
+      <Script
+        id="amap-security"
+        strategy="lazyOnload"
+      >
+        {`window._AMapSecurityConfig = { securityJsCode: '${process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE || ''}' };`}
+      </Script>
       <Script
         src={`https://webapi.amap.com/maps?v=2.0&key=${process.env.NEXT_PUBLIC_AMAP_KEY || "your-amap-key"}`}
         strategy="lazyOnload"
