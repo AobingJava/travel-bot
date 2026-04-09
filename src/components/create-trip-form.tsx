@@ -314,55 +314,53 @@ export function CreateTripForm() {
   }
 
   return (
-    <form action={handleSubmit} className="space-y-4">
-      <div className="space-y-1.5">
-        <label className="text-[13px] font-medium text-slate-600" htmlFor="destination">
-          Plan
-        </label>
+    <form action={handleSubmit} className="space-y-5">
+      {/* Plan 输入框 - 正方形大输入框 */}
+      <div className="space-y-2">
         <input
           id="destination"
           name="destination"
           value={form.destination}
           onChange={(event) => updateField("destination", event.target.value)}
-          className="w-full aspect-square rounded-2xl border border-slate-200 bg-white px-4 py-4 text-[18px] text-slate-950 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-          placeholder="想去哪里玩？"
+          className="w-full aspect-square rounded-[20px] input-surface px-5 py-5 text-[20px] text-on-surface placeholder:text-on-surface-variant/50 outline-none transition focus:bg-surface-container-lowest"
+          placeholder="输入你想去哪里？"
         />
       </div>
 
-      {/* 日期选择区域 */}
-      <div className="grid grid-cols-2 gap-2.5">
-        <label className="space-y-1.5 text-[13px] font-medium text-slate-600">
-          <span>出发</span>
+      {/* 日期选择区域 - 并排设计 */}
+      <div className="grid grid-cols-2 gap-3">
+        <label className="space-y-2">
+          <span className="text-[12px] font-semibold text-on-surface-variant">出发</span>
           <input
             name="startDate"
             type="date"
             value={form.startDate}
             onChange={(event) => updateField("startDate", event.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[14px] text-slate-950 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+            className="w-full input-surface rounded-[14px] px-4 py-3.5 text-[14px] text-on-surface outline-none transition focus:bg-surface-container-lowest"
           />
         </label>
-        <label className="space-y-1.5 text-[13px] font-medium text-slate-600">
-          <span>返回</span>
+        <label className="space-y-2">
+          <span className="text-[12px] font-semibold text-on-surface-variant">返回</span>
           <input
             name="endDate"
             type="date"
             value={form.endDate}
             onChange={(event) => updateField("endDate", event.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[14px] text-slate-950 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+            className="w-full input-surface rounded-[14px] px-4 py-3.5 text-[14px] text-on-surface outline-none transition focus:bg-surface-container-lowest"
           />
         </label>
       </div>
 
       {/* 热门推荐标签 - 输入目的地后才显示 */}
       {showThemes && streamedThemes.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-slate-600">热门推荐标签</span>
+            <span className="text-[12px] font-semibold text-on-surface-variant">热门推荐标签</span>
             {isAnalyzing && (
-              <span className="text-xs text-slate-400 animate-pulse">正在分析目的地...</span>
+              <span className="text-xs text-on-surface-variant/60 animate-pulse">正在分析目的地...</span>
             )}
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {streamedThemes.filter((tag) => tag && tag.trim()).map((tag, index) => {
               // 查找对应的 theme key
               const matchingTheme = tripThemes.find((theme) => theme.label === tag);
@@ -388,10 +386,10 @@ export function CreateTripForm() {
                       }
                     }
                   }}
-                  className={`rounded-full border px-3 py-1.5 text-[13px] font-medium transition-all active:scale-[0.96] ${
+                  className={`chip-pill px-3.5 py-2 text-[13px] font-medium transition-all active:scale-[0.95] ${
                     isSelected || isCustomTagSelected
-                      ? "border-transparent bg-slate-950 text-white shadow-md shadow-slate-950/12"
-                      : "border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400"
+                      ? "bg-primary text-white shadow-ambient"
+                      : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container"
                   }`}
                   style={{ animation: 'fadeIn 0.3s ease-in-out both', animationDelay: `${index * 50}ms` }}
                 >
@@ -405,36 +403,21 @@ export function CreateTripForm() {
 
       {/* 旅行主题区域 - 输入目的地后才显示 */}
       {showThemes && streamedThemes.length > 0 && (
-        <div className="space-y-1.5">
-          <span className="text-[13px] font-medium text-slate-600">旅行主题</span>
-          <div className="flex flex-wrap gap-1.5">
+        <div className="space-y-2">
+          <span className="text-[12px] font-semibold text-on-surface-variant">旅行主题</span>
+          <div className="flex flex-wrap gap-2">
             {tripThemes.map((theme) => {
               const selected = form.themes.includes(theme.key);
-              const isRecommended = streamedThemes.includes(theme.key);
-
-              // 推荐主题的不同颜色样式
-              const recommendedStyles = {
-                nature: "border-emerald-300 bg-emerald-50 text-emerald-700",
-                food: "border-orange-300 bg-orange-50 text-orange-700",
-                culture: "border-amber-300 bg-amber-50 text-amber-700",
-                shopping: "border-pink-300 bg-pink-50 text-pink-700",
-                nightlife: "border-purple-300 bg-purple-50 text-purple-700",
-                family: "border-blue-300 bg-blue-50 text-blue-700",
-              };
-
-              const recommendedStyle = isRecommended
-                ? recommendedStyles[theme.key] || "border-indigo-300 bg-indigo-50 text-indigo-700"
-                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300";
 
               return (
                 <button
                   key={theme.key}
                   type="button"
                   onClick={() => toggleTheme(theme.key)}
-                  className={`relative rounded-full border px-3 py-1.5 text-[13px] font-medium transition-all active:scale-[0.96] ${
+                  className={`chip-pill px-3.5 py-2 text-[13px] font-medium transition-all active:scale-[0.95] ${
                     selected
-                      ? "border-transparent bg-slate-950 text-white shadow-md shadow-slate-950/12"
-                      : recommendedStyle
+                      ? "bg-primary text-white shadow-ambient"
+                      : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container"
                   }`}
                 >
                   {theme.label}
@@ -527,20 +510,20 @@ export function CreateTripForm() {
         </div>
       )}
 
-      {/* GO 按钮 - 居中 */}
-      <div className="flex justify-center">
+      {/* GO 按钮 - 居中圆形渐变 */}
+      <div className="flex justify-center pt-2">
         <button
           type="submit"
           disabled={isPending}
-          className="group relative inline-flex items-center justify-center w-16 h-16 font-headline font-bold text-white transition-all duration-200 bg-gradient-to-br from-orange-600 to-orange-400 rounded-full shadow-xl hover:shadow-2xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+          className="group relative inline-flex items-center justify-center w-[72px] h-[72px] rounded-full btn-primary-gradient disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? (
-            <svg className="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24">
+            <svg className="w-9 h-9 text-white animate-spin" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
           ) : (
-            <span className="text-lg">GO</span>
+            <span className="text-xl font-black text-white font-display">GO</span>
           )}
         </button>
       </div>

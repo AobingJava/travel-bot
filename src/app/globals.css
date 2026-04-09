@@ -1,37 +1,62 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fff4f3;
-  --foreground: #4e2120;
-  --color-mint-100: #dff5eb;
-  --color-mint-700: #15805c;
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --primary: #a63400;
+  /* Surface Hierarchy - 暖白色纸张质感 */
+  --surface: #fbf9f7;
+  --surface-container-low: #f5f3f1;
+  --surface-container-lowest: #ffffff;
+  --surface-container: #f0ede9;
+  --surface-container-high: #e8e4e0;
+  --surface-container-highest: #e0dcd8;
+
+  /* Primary - 签名渐变橙色 */
+  --primary: #a03b00;
   --primary-fixed: #ff7948;
-  --primary-container: #ff7948;
-  --on-primary: #ffefeb;
+  --primary-container: #c94c00;
+  --on-primary: #ffffff;
+
+  /* Secondary */
   --secondary: #3d57a7;
-  --secondary-container: #c5d0ff;
-  --on-secondary-container: #274292;
-  --tertiary: #6c5a00;
-  --tertiary-fixed: #ffd709;
-  --surface: #fff4f3;
-  --surface-container: #ffe1e0;
-  --surface-container-low: #ffedeb;
-  --surface-container-high: #ffdad8;
-  --on-surface: #4e2120;
-  --on-surface-variant: #834c4b;
-  --outline-variant: #e09c99;
+  --secondary-container: #d4dbf7;
+  --on-secondary-container: #1e306b;
+
+  /* Tertiary - 成功/生态绿 */
+  --tertiary: #00685c;
+  --tertiary-fixed: #00a88f;
+  --on-tertiary-container: #ccede6;
+
+  /* Text & Outline */
+  --foreground: #1b1c1b;
+  --background: #fbf9f7;
+  --on-surface: #1b1c1b;
+  --on-surface-variant: #6b6764;
+  --outline-variant: rgba(225, 191, 178, 0.15);
+
+  /* Glass & Effects */
+  --glass-surface: rgba(251, 249, 247, 0.7);
+  --glass-backdrop-blur: 24px;
+
+  /* Ambient Shadow - 环境阴影 */
+  --shadow-ambient: 0 8px 40px rgba(27, 28, 27, 0.06);
+  --shadow-card: 0 2px 16px rgba(27, 28, 27, 0.04);
+  --shadow-float: 0 12px 60px rgba(27, 28, 27, 0.08);
+
+  /* Safe Area */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #a03b00 0%, #c94c00 100%);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-body);
-  --font-mono: var(--font-mono);
-  --font-headline: var(--font-headline);
-  --color-mint-100: var(--color-mint-100);
-  --color-mint-700: var(--color-mint-700);
+  --color-surface: var(--surface);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
   --color-primary: var(--primary);
   --color-primary-fixed: var(--primary-fixed);
   --color-primary-container: var(--primary-container);
@@ -41,13 +66,21 @@
   --color-on-secondary-container: var(--on-secondary-container);
   --color-tertiary: var(--tertiary);
   --color-tertiary-fixed: var(--tertiary-fixed);
-  --color-surface: var(--surface);
-  --color-surface-container: var(--surface-container);
-  --color-surface-container-low: var(--surface-container-low);
-  --color-surface-container-high: var(--surface-container-high);
   --color-on-surface: var(--on-surface);
   --color-on-surface-variant: var(--on-surface-variant);
   --color-outline-variant: var(--outline-variant);
+  --color-glass-surface: var(--glass-surface);
+
+  --shadow-ambient: var(--shadow-ambient);
+  --shadow-card: var(--shadow-card);
+  --shadow-float: var(--shadow-float);
+
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
+  --font-headline: var(--font-headline);
+
+  --color-mint-100: #dff5eb;
+  --color-mint-700: #15805c;
 }
 
 * {
@@ -94,5 +127,64 @@ select {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* =============================================
+   The Curated Horizon Design System
+   ============================================= */
+
+/* 签名渐变按钮 - 主按钮 */
+.btn-primary-gradient {
+  background: var(--gradient-primary);
+  box-shadow: var(--shadow-float);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary-gradient:active {
+  transform: scale(0.97);
+}
+
+/* 玻璃态卡片 */
+.glass-card {
+  background: var(--glass-surface);
+  backdrop-filter: blur(var(--glass-backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--glass-backdrop-blur));
+}
+
+/* 环境阴影卡片 - 无描边 */
+.card-elevated {
+  background: var(--surface-container-lowest);
+  box-shadow: var(--shadow-card);
+  border: none;
+}
+
+/* 输入框样式 - 无边框设计 */
+.input-surface {
+  background: var(--surface-container-low);
+  border: 2px solid transparent;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.input-surface:focus {
+  background: var(--surface-container-lowest);
+  border-color: rgba(160, 59, 0, 0.3);
+  outline: none;
+}
+
+/* 幽灵边框 - 15% 透明度的描边 */
+.ghost-border {
+  border: 1px solid var(--outline-variant);
+}
+
+/* 状态标签 - 胶囊形状 */
+.chip-pill {
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+/* 标题文字 */
+.font-display {
+  font-family: var(--font-headline), sans-serif;
+  letter-spacing: -0.02em;
 }
 
