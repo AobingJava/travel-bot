@@ -34,6 +34,29 @@ function AMapComponent({
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
 
+  // 初始化地图
+  useEffect(() => {
+    if (!mapRef.current || !window.AMap) return;
+
+    try {
+      const map = new window.AMap.Map(mapRef.current, {
+        zoom: 12,
+        center: userLocation ? [userLocation.lng, userLocation.lat] : [139.6917, 35.6895], // 默认东京
+      });
+      mapInstanceRef.current = map;
+    } catch (error) {
+      console.error("初始化地图失败:", error);
+      setLocationError("地图初始化失败");
+    }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.destroy();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
   // 获取用户当前位置
   useEffect(() => {
     if (!navigator.geolocation) {
