@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { MobileNav } from "@/components/mobile-nav";
 import { TaskBoard } from "@/components/task-board";
@@ -21,6 +21,11 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
 
   if (!trip) {
     notFound();
+  }
+
+  // 如果行程已完成，刷新时自动跳转回首页
+  if (trip.stage === "completed") {
+    redirect("/");
   }
 
   const viewParam = resolvedSearchParams.view;

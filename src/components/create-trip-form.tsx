@@ -255,7 +255,8 @@ export function CreateTripForm() {
         return;
       }
 
-      router.push(`/trips/${payload.tripId}`);
+      // 跳转到规划动态页面
+      router.push(`/trips/${payload.tripId}/planning`);
     });
   }
 
