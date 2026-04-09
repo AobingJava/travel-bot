@@ -133,6 +133,7 @@ export async function generateTripDocument(
     endDate: input.endDate,
     travelerCount: input.travelerCount,
     themes: input.themes,
+    customTags: input.customTags,
     ownerEmail: owner.email,
     ownerName: owner.name,
     stage: plan.stage,

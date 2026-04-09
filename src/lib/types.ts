@@ -111,6 +111,7 @@ export interface TripDocument {
   endDate: string;
   travelerCount: number;
   themes: ThemeKey[];
+  customTags?: string[];
   ownerEmail: string;
   ownerName: string;
   stage: TripStage;
@@ -138,11 +139,26 @@ export interface CreateTripInput {
   endDate: string;
   travelerCount: number;
   themes: ThemeKey[];
+  customTags?: string[];
 }
 
 export interface InviteMemberInput {
   email: string;
   name?: string;
+}
+
+export interface Attraction {
+  id: string;
+  name: string;
+  address?: string;
+  rating?: number;
+  visitDuration?: number;
+  bestTimeToVisit?: string;
+  description?: string;
+  category?: string;
+  latitude?: number;
+  longitude?: number;
+  images?: string[];
 }
 
 export interface TaskUpdateInput {

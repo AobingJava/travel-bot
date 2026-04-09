@@ -20,6 +20,7 @@ export const createTripSchema = z
       .min(1, "至少 1 人")
       .max(20, "人数最多 20 人"),
     themes: z.array(themeEnum).min(1, "至少选择一个旅行主题"),
+    customTags: z.array(z.string()).optional(),
   })
   .refine((value) => value.endDate >= value.startDate, {
     message: "返回日期不能早于出发日期",
