@@ -56,6 +56,7 @@ export function TripOverview({ trip, canInvite }: { trip: TripDocument; canInvit
         </div>
       </article>
 
+      {/* 旅行主题 */}
       <div className="grid gap-2 sm:grid-cols-2">
         <article className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
           <p className="text-xs font-medium text-slate-400">旅行主题</p>
