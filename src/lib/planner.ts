@@ -1234,6 +1234,7 @@ function enumerateDates(startDate: string, endDate: string) {
 }
 
 function getFallbackMapPins(destination: string): Array<{ lat: number; lng: number; name: string }> {
+  const destinationLower = destination.toLowerCase();
 
   // 日本目的地
   if (destinationLower.includes("日本") || destinationLower.includes("东京")) {

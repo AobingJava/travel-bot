@@ -12,10 +12,10 @@ import {
   getTravelModeText,
 } from "@/lib/utils";
 
-// const phases: Array<{ key: TaskPhase; label: string }> = [
-//   { key: "during", label: "旅途打卡" },
-//   { key: "post", label: "旅后总结" },
-// ];
+const phases: Array<{ key: TaskPhase; label: string }> = [
+  { key: "during", label: "旅途打卡" },
+  { key: "post", label: "旅后总结" },
+];
 
 export function TaskBoard({
   tripId,

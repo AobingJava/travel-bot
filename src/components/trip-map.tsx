@@ -72,7 +72,7 @@ export function TripMap({ tasks, taskPhotos = {} }: TripMapProps) {
     if (!mapInstanceRef.current) return;
 
     const AMap = window.AMap;
-    const map = mapInstanceRef.current;
+    const map = mapInstanceRef.current as any;
 
     map.clearMap();
 
