@@ -4,7 +4,12 @@ import { ZodError } from "zod";
 import { getRepositoryFallbackUser } from "@/lib/app-service";
 import { createTripSchema } from "@/lib/validators";
 import { getSessionUser } from "@/lib/auth";
-import { generateTripDocument, generatePackingListOnly, type PlanningStep } from "@/lib/planner";
+import { normalizePackingListFromApi } from "@/lib/packing-list";
+import {
+  createTripShellDocument,
+  generatePackingListOnly,
+  type PlanningStep,
+} from "@/lib/planner";
 import { getRepository } from "@/lib/repository";
 
 const encoder = new TextEncoder();
@@ -54,7 +59,18 @@ export async function POST(request: NextRequest) {
           sendProgress("packing", "正在整理装备清单...");
           // 仍对大模型使用流式 HTTP 连接；不向浏览器推送原始 JSON 片段
           const noopStream = () => {};
-          const packingList = await generatePackingListOnly(payload, noopStream);
+          const rawPackingList = await generatePackingListOnly(payload, noopStream);
+          const tripDays = Math.max(
+            1,
+            Math.ceil(
+              (new Date(payload.endDate).getTime() - new Date(payload.startDate).getTime()) /
+                (1000 * 60 * 60 * 24),
+            ) + 1,
+          );
+          const packingList = normalizePackingListFromApi(
+            Array.isArray(rawPackingList) ? rawPackingList : [],
+            tripDays,
+          );
 
           controller.enqueue(
             encodeSSE({
@@ -64,19 +80,7 @@ export async function POST(request: NextRequest) {
             })
           );
 
-          const trip = await generateTripDocument(
-            payload,
-            currentUser,
-            (step) => {
-              sendProgress(step);
-            },
-            noopStream,
-          );
-
-          // 更新 packingList 到 trip
-          trip.packingList = packingList;
-
-          // 保存到数据库
+          const trip = createTripShellDocument(payload, currentUser, packingList);
           await repository.createTrip(trip);
 
           // 发送完成事件
@@ -84,7 +88,7 @@ export async function POST(request: NextRequest) {
             encodeSSE({
               type: "complete",
               tripId: trip.id,
-              message: "行程已生成完成",
+              message: "装备清单已保存，可前往待办页；完整任务与路线在后台生成中",
             })
           );
         } catch (error) {

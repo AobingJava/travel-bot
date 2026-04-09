@@ -1,7 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { TripDocument, Attraction, SessionUser } from "@/lib/types";
+import { buildXhsPlainText, tripPackingToSelectableRows } from "@/lib/packing-format";
+import {
+  buildMarathonHashtagLine,
+  MARATHON_PACKING_INTRO,
+  MARATHON_XHS_PS,
+  tripHasMarathonProfile,
+} from "@/lib/trip-marathon";
 import Link from "next/link";
 
 interface MemoryResultViewProps {
@@ -14,6 +21,12 @@ interface SocialCardProps {
   tripName: string;
   destination: string;
   coverImage?: string;
+  marathonMode?: boolean;
+  marathonTagContext?: string[];
+  /** 用户勾选带入卡片的装备行（完整文案） */
+  selectedPackingTexts: string[];
+  /** 复制到剪贴板的完整正文 */
+  cardPlainText: string;
 }
 
 // 从 trip 任务中提取景点数据（只包含已完成的任务）
@@ -39,12 +52,32 @@ function extractAttractionsFromTrip(trip: TripDocument): Attraction[] {
 
 export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
   const [selectedAttractions, setSelectedAttractions] = useState<Attraction[]>([]);
+  const [selectedPackingIds, setSelectedPackingIds] = useState<string[]>([]);
   const [showGenerateCard, setShowGenerateCard] = useState(false);
   const [generatedCards, setGeneratedCards] = useState<SocialCardProps[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [attractionsWithPhotos, setAttractionsWithPhotos] = useState<Attraction[]>([]);
 
   const attractions = extractAttractionsFromTrip(trip);
+  const packingRows = useMemo(() => tripPackingToSelectableRows(trip.packingList), [trip.packingList]);
+
+  const needsPickingGear = packingRows.length > 0;
+  const canGenerate =
+    selectedAttractions.length > 0 && (!needsPickingGear || selectedPackingIds.length > 0);
+
+  function togglePackingRow(id: string) {
+    setSelectedPackingIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
+
+  function selectAllPacking() {
+    setSelectedPackingIds(packingRows.map((r) => r.id));
+  }
+
+  function clearPackingSelection() {
+    setSelectedPackingIds([]);
+  }
 
   // 加载所有景点的照片
   useEffect(() => {
@@ -83,22 +116,43 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
   };
 
   const generateSocialCard = () => {
-    if (selectedAttractions.length === 0) return;
+    if (!canGenerate) return;
 
     // 从 attractionsWithPhotos 中找到对应的景点（包含照片数据）
     const selectedWithPhotos = attractionsWithPhotos.filter((a) =>
       selectedAttractions.some((s) => s.id === a.id)
     );
 
+    const marathonMode = tripHasMarathonProfile({ customTags: trip.customTags });
+    const packingTexts = packingRows.filter((r) => selectedPackingIds.includes(r.id)).map((r) => r.text);
+
+    const cardPlainText = buildXhsPlainText({
+      marathonMode,
+      destination: trip.destination,
+      tripName: trip.name,
+      marathonTagContext: trip.customTags,
+      attractions: selectedWithPhotos.map((a) => ({
+        name: a.name,
+        description: a.description,
+        address: a.address,
+      })),
+      packingLines: packingTexts,
+    });
+
     const card: SocialCardProps = {
       attractions: selectedWithPhotos,
       tripName: trip.name,
       destination: trip.destination,
       coverImage: selectedWithPhotos[0]?.images?.[0],
+      marathonMode,
+      marathonTagContext: trip.customTags,
+      selectedPackingTexts: packingTexts,
+      cardPlainText,
     };
     setGeneratedCards((prev) => [card, ...prev]);
     setShowGenerateCard(false);
     setSelectedAttractions([]);
+    setSelectedPackingIds([]);
   };
 
   const handleRecordVoice = () => {
@@ -247,6 +301,69 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
         </div>
       )}
 
+      {/* 选择装备（与景点一起写入小红书正文） */}
+      {packingRows.length > 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h4 className="text-base font-bold text-slate-800">选择装备</h4>
+              <p className="text-xs text-slate-500">
+                勾选要放进卡片与复制正文中的装备条目（需至少选一项后再生成）
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={selectAllPacking}
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100"
+              >
+                全选
+              </button>
+              <button
+                type="button"
+                onClick={clearPackingSelection}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                清空
+              </button>
+            </div>
+          </div>
+          <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+            {packingRows.map((row) => {
+              const on = selectedPackingIds.includes(row.id);
+              return (
+                <button
+                  key={row.id}
+                  type="button"
+                  onClick={() => togglePackingRow(row.id)}
+                  className={`flex w-full items-start gap-2 rounded-xl border px-3 py-2 text-left text-[13px] transition ${
+                    on ? "border-orange-500 bg-orange-50 text-slate-900" : "border-slate-100 bg-slate-50/80 text-slate-700"
+                  }`}
+                >
+                  <span
+                    className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                      on ? "border-orange-500 bg-orange-500 text-white" : "border-slate-300 bg-white"
+                    }`}
+                  >
+                    {on ? (
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    ) : null}
+                  </span>
+                  <span className="leading-snug">{row.text}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] text-slate-400">已选 {selectedPackingIds.length} / {packingRows.length} 条</p>
+        </div>
+      ) : null}
+
       {/* 选择景点区域 */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="flex items-center justify-between mb-4">
@@ -256,10 +373,11 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
           </div>
           <button
             onClick={() => setShowGenerateCard(true)}
-            disabled={selectedAttractions.length === 0}
+            disabled={!canGenerate}
             className="rounded-full bg-gradient-to-r from-pink-500 to-rose-500 px-5 py-2 text-xs font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition hover:scale-105 active:scale-95"
           >
-            生成卡片 ({selectedAttractions.length})
+            生成卡片 ({selectedAttractions.length}
+            {packingRows.length > 0 ? ` · ${selectedPackingIds.length}装备` : ""})
           </button>
         </div>
 
@@ -310,7 +428,8 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
             <h3 className="text-xl font-bold text-slate-800">确认生成卡片</h3>
             <p className="mt-2 text-sm text-slate-500">
-              将为以下 {selectedAttractions.length} 个景点生成小红书风格卡片：
+              将为以下 {selectedAttractions.length} 个景点
+              {packingRows.length > 0 ? ` 与 ${selectedPackingIds.length} 条装备` : ""} 生成小红书风格正文（可复制全文）：
             </p>
             <ul className="mt-3 space-y-1">
               {selectedAttractions.map((attraction) => (
@@ -319,6 +438,18 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
                 </li>
               ))}
             </ul>
+            {packingRows.length > 0 ? (
+              <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+                <p className="font-semibold text-slate-700">装备预览</p>
+                <ul className="mt-1 max-h-28 space-y-0.5 overflow-y-auto">
+                  {packingRows
+                    .filter((r) => selectedPackingIds.includes(r.id))
+                    .map((r) => (
+                      <li key={r.id}>– {r.text}</li>
+                    ))}
+                </ul>
+              </div>
+            ) : null}
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setShowGenerateCard(false)}
@@ -328,7 +459,8 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
               </button>
               <button
                 onClick={generateSocialCard}
-                className="flex-1 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:scale-105"
+                disabled={!canGenerate}
+                className="flex-1 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 生成
               </button>
@@ -340,9 +472,135 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
   );
 }
 
+function CopyCardButton({ text }: { text: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard.writeText(text).then(
+          () => {
+            setDone(true);
+            setTimeout(() => setDone(false), 2000);
+          },
+          () => {
+            setDone(false);
+          },
+        );
+      }}
+      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-pink-200 bg-pink-50 py-2.5 text-sm font-bold text-pink-700 transition hover:bg-pink-100"
+    >
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+        />
+      </svg>
+      {done ? "已复制到剪贴板" : "复制全文（小红书粘贴）"}
+    </button>
+  );
+}
+
+/** 勾选跑马类标签时的「跑马行李清单」版型（地点 + 自选装备全文 + PS） */
+function MarathonSocialCard({
+  attractions,
+  tripName,
+  destination,
+  marathonTagContext,
+  selectedPackingTexts,
+  cardPlainText,
+}: Pick<
+  SocialCardProps,
+  | "attractions"
+  | "tripName"
+  | "destination"
+  | "marathonTagContext"
+  | "selectedPackingTexts"
+  | "cardPlainText"
+>) {
+  const allImages = attractions.flatMap((a) =>
+    a.images && a.images.length > 0 ? a.images.map((url) => ({ url, caption: a.name })) : [],
+  );
+  const hero =
+    allImages[0]?.url ??
+    "https://images.unsplash.com/photo-1452626038306-9aae5e071dd3?w=800&h=1000&fit=crop";
+  const hashtagTokens = buildMarathonHashtagLine(destination, marathonTagContext).split(/\s+/).filter(Boolean);
+
+  return (
+    <div className="mx-auto max-w-sm overflow-hidden rounded-[2rem] bg-white shadow-2xl ring-1 ring-slate-100">
+      <div className="relative aspect-[3/4]">
+        <img alt={tripName} className="h-full w-full object-cover" src={hero} />
+      </div>
+      <div className="space-y-3 p-5">
+        <CopyCardButton text={cardPlainText} />
+        <div className="flex flex-wrap gap-2">
+          {hashtagTokens.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full bg-pink-100 px-2.5 py-1 text-[11px] font-black text-pink-600"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+        {attractions.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500">打卡地点</p>
+            {attractions.map((a) => (
+              <div key={a.id} className="rounded-lg bg-slate-50 px-3 py-2 text-[13px] text-slate-800">
+                <p className="font-semibold">{a.name}</p>
+                {(a.description || a.address) && (
+                  <p className="mt-1 text-[12px] leading-relaxed text-slate-600">
+                    {[a.description, a.address].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <p className="text-[13px] font-semibold text-slate-800">{MARATHON_PACKING_INTRO}</p>
+        <ul className="space-y-1.5 text-[13px] leading-relaxed text-slate-700">
+          {selectedPackingTexts.map((line, idx) => (
+            <li key={`${idx}-${line.slice(0, 48)}`} className="flex gap-2">
+              <span className="shrink-0 text-slate-400">□</span>
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="whitespace-pre-wrap border-t border-slate-100 pt-3 text-[12px] leading-relaxed text-slate-600">
+          {MARATHON_XHS_PS}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // 小红书风格社交卡片组件
-function SocialCard({ attractions, tripName, destination }: SocialCardProps) {
+function SocialCard({
+  attractions,
+  tripName,
+  destination,
+  marathonMode,
+  marathonTagContext,
+  selectedPackingTexts,
+  cardPlainText,
+}: SocialCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  if (marathonMode) {
+    return (
+      <MarathonSocialCard
+        attractions={attractions}
+        tripName={tripName}
+        destination={destination}
+        marathonTagContext={marathonTagContext}
+        selectedPackingTexts={selectedPackingTexts}
+        cardPlainText={cardPlainText}
+      />
+    );
+  }
 
   // 收集所有景点的照片
   const allImages = attractions.flatMap((a) =>
@@ -356,15 +614,16 @@ function SocialCard({ attractions, tripName, destination }: SocialCardProps) {
     ? allImages
     : [{ url: `https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&h=1000&fit=crop`, caption: tripName }];
 
+  const heroUrl =
+    images[currentImageIndex]?.url ||
+    images[0]?.url ||
+    "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&h=1000&fit=crop";
+
   return (
     <div className="mx-auto max-w-sm overflow-hidden rounded-[2rem] bg-white shadow-2xl ring-1 ring-slate-100">
       {/* 轮播图区域 */}
       <div className="relative aspect-[3/4] group">
-        <img
-          alt={tripName}
-          className="h-full w-full object-cover"
-          src={images[0]?.url || "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&h=1000&fit=crop"}
-        />
+        <img alt={tripName} className="h-full w-full object-cover" src={heroUrl} />
         <div className="absolute bottom-4 right-4 rounded-full bg-black/40 px-3 py-1 text-xs font-bold text-white backdrop-blur-md">
           {currentImageIndex + 1}/{images.length}
         </div>
@@ -394,6 +653,8 @@ function SocialCard({ attractions, tripName, destination }: SocialCardProps) {
 
       {/* 内容区域 */}
       <div className="space-y-3 p-5">
+        <CopyCardButton text={cardPlainText} />
+
         {/* 标签 */}
         <div className="flex flex-wrap gap-2">
           <span className="rounded-full bg-pink-100 px-3 py-1 text-xs font-black text-pink-600">
@@ -407,19 +668,8 @@ function SocialCard({ attractions, tripName, destination }: SocialCardProps) {
           </span>
         </div>
 
-        {/* 标题 */}
-        <h4 className="text-lg font-bold leading-snug text-slate-900">
-          {attractions[0]?.name ? `探索${attractions[0].name}，发现隐藏的美景 🌸✨` : "精彩旅程"}
-        </h4>
-
-        {/* 描述 */}
-        <p className="text-sm leading-relaxed text-slate-600">
-          {attractions[0]?.description || "这次旅行真的太棒了！每一个景点都让人流连忘返。"}
-        </p>
-
-        {/* 地点信息 */}
-        <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
-          <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex items-center gap-2 text-slate-500">
+          <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -433,10 +683,36 @@ function SocialCard({ attractions, tripName, destination }: SocialCardProps) {
               d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
             />
           </svg>
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            {destination}
-          </span>
+          <span className="text-xs font-bold uppercase tracking-wider">{destination}</span>
         </div>
+
+        <div className="space-y-3 border-t border-slate-100 pt-3">
+          <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500">打卡地点</p>
+          {attractions.map((a) => (
+            <div key={a.id}>
+              <h4 className="text-base font-bold leading-snug text-slate-900">{a.name}</h4>
+              {(a.description || a.address) && (
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  {[a.description, a.address].filter(Boolean).join("\n")}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {selectedPackingTexts.length > 0 ? (
+          <div className="border-t border-slate-100 pt-3">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500">装备清单</p>
+            <ul className="mt-2 space-y-1.5 text-[13px] leading-relaxed text-slate-700">
+              {selectedPackingTexts.map((line, idx) => (
+                <li key={`${idx}-${line.slice(0, 48)}`} className="flex gap-2">
+                  <span className="text-slate-400">·</span>
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {/* 互动栏 */}
         <div className="flex items-center justify-between pt-2">

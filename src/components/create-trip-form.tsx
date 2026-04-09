@@ -4,6 +4,10 @@ import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { tripThemes } from "@/lib/types";
+import {
+  MARATHON_SUGGESTION_CHIPS,
+  shouldSuggestMarathonTags,
+} from "@/lib/trip-marathon";
 
 type FormState = {
   destination: string;
@@ -141,16 +145,20 @@ export function CreateTripForm() {
     setIsAnalyzing(true);
     const timer = setTimeout(() => {
       const recommended = getDestinationTags(form.destination);
+      const marathonLead = shouldSuggestMarathonTags(form.destination)
+        ? [...MARATHON_SUGGESTION_CHIPS]
+        : [];
+      const merged = [...new Set([...marathonLead, ...recommended])].slice(0, 12);
       setIsAnalyzing(false);
 
       // 流式输出效果：逐个显示推荐的主题，每个间隔 50ms
-      if (recommended.length > 0) {
+      if (merged.length > 0) {
         setShowThemes(true);
         setStreamedThemes([]);
 
         // 使用 setTimeout 逐个添加标签，避免 setInterval 的状态问题
         const timeouts: NodeJS.Timeout[] = [];
-        recommended.forEach((tag, index) => {
+        merged.forEach((tag, index) => {
           const timeout = setTimeout(() => {
             setStreamedThemes((prev) => [...prev, tag]);
           }, index * 50);
@@ -359,7 +367,7 @@ export function CreateTripForm() {
       }
 
       if (!streamError && tripId) {
-        router.push(`/trips/${tripId}/planning`);
+        router.push(`/trips/${tripId}?view=todos`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "生成失败，请稍后再试。");

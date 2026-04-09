@@ -4,7 +4,11 @@ import { addHours } from "@/lib/date";
 import { getSessionUser, hashToken } from "@/lib/auth";
 import { appEnv } from "@/lib/env";
 import { sendMail } from "@/lib/mailer";
-import { generateTripDocument, replanTripDocument } from "@/lib/planner";
+import {
+  generateFullPlanAndMergeIntoTrip,
+  generateTripDocument,
+  replanTripDocument,
+} from "@/lib/planner";
 import { clearPackingListMemory } from "@/lib/packing-list-memory";
 import { getRepository } from "@/lib/repository";
 import type {
@@ -37,6 +41,37 @@ export async function getHomeBootstrap(): Promise<AppBootstrap> {
       dataSource: "demo",
     };
   }
+}
+
+/** 在装备清单就绪后补全完整规划（任务、每日建议、横幅等），保持 trip id 与 packingList 不变。 */
+export async function completeTripFullPlan(tripId: string) {
+  const repository = getRepository();
+  const viewer = (await getSessionUser()) ?? getRepositoryFallbackUser();
+  const trip = await repository.getTrip(tripId);
+
+  if (!trip) {
+    throw new Error("行程不存在");
+  }
+
+  assertCanMutateTrip(trip, viewer, repository.mode === "demo");
+
+  if (trip.banner.fullPlanReady !== false) {
+    return { ok: true as const, alreadyComplete: true as const };
+  }
+
+  const input: CreateTripInput = {
+    name: trip.name,
+    destination: trip.destination,
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+    travelerCount: trip.travelerCount,
+    themes: trip.themes,
+    customTags: trip.customTags,
+  };
+
+  const merged = await generateFullPlanAndMergeIntoTrip(trip, input, viewer);
+  await repository.saveTrip(merged);
+  return { ok: true as const, alreadyComplete: false as const };
 }
 
 /** 清空全部行程数据（D1 上为物理删除），并清空装备清单内存缓存。需通过受保护 API 调用。 */

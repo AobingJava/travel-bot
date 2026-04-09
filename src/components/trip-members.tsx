@@ -4,6 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import type { TripDocument, TripMember, MemberLocationStatus, SessionUser } from "@/lib/types";
 import { loadAmap } from "@/lib/amap-loader";
 
+const GREEN_BUDDY_REMINDER_AUDIO = {
+  low: "/audio/green-buddy-light.mp3",
+  medium: "/audio/green-buddy-medium.mp3",
+  high: "/audio/green-buddy-heavy.mp3",
+} as const;
+
 const statusLabel = {
   confirmed: "已确认",
   pending: "待确认",
@@ -294,6 +300,22 @@ export function TripMembers({
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [reminderLevel, setReminderLevel] = useState<"low" | "medium" | "high">("low");
   const [showReminderCard, setShowReminderCard] = useState(false);
+  const reminderAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  function playGreenBuddySound(level: "low" | "medium" | "high") {
+    const src = GREEN_BUDDY_REMINDER_AUDIO[level];
+    let audio = reminderAudioRef.current;
+    if (!audio) {
+      audio = new Audio();
+      reminderAudioRef.current = audio;
+    }
+    audio.pause();
+    audio.currentTime = 0;
+    audio.src = src;
+    void audio.play().catch(() => {
+      /* autoplay policy / missing file */
+    });
+  }
 
   // 获取用户位置
   useEffect(() => {
@@ -345,6 +367,7 @@ export function TripMembers({
   };
 
   const handleReminderLevel = (level: "low" | "medium" | "high") => {
+    playGreenBuddySound(level);
     setReminderLevel(level);
     setShowReminderCard(true);
   };

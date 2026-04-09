@@ -89,6 +89,8 @@ export interface TripBanner {
   body: string;
   tone: "neutral" | "weather" | "timing";
   updatedAt: string;
+  /** false 表示仅生成装备清单，完整任务/每日建议待 complete-plan 补全；缺省视为 true（历史数据） */
+  fullPlanReady?: boolean;
 }
 
 export interface TripEvent {

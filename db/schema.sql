@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS trip_documents (
   banner_json TEXT NOT NULL,
   events_json TEXT NOT NULL,
   notifications_json TEXT NOT NULL,
+  packing_list_json TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

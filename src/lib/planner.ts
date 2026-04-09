@@ -26,6 +26,7 @@ import {
   getThemeLabel,
   sortTasks,
 } from "@/lib/utils";
+import { buildMarathonPackingListRaw, tripHasMarathonProfile } from "@/lib/trip-marathon";
 
 const taskLabelSchema = z.enum([
   "suggestion",
@@ -202,6 +203,7 @@ export async function generateTripDocument(
     banner: {
       ...plan.banner,
       updatedAt: now,
+      fullPlanReady: true,
     },
     events: [
       createEvent({
@@ -221,6 +223,139 @@ export async function generateTripDocument(
       },
     ],
     createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/** 仅保存装备清单与基础信息的轻量行程；完整 LLM 规划由 generateFullPlanAndMergeIntoTrip 补全。 */
+export function createTripShellDocument(
+  input: CreateTripInput,
+  owner: SessionUser,
+  packingList: PackingListItem[] | string[],
+): TripDocument {
+  const now = new Date().toISOString();
+  const tripId = createId("trip");
+
+  return {
+    id: tripId,
+    slug: slugify(`${input.destination}-${tripId.slice(-6)}`),
+    name: input.name?.trim() || `${input.destination} 之旅`,
+    destination: input.destination,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    travelerCount: input.travelerCount ?? 1,
+    themes: input.themes,
+    customTags: input.customTags,
+    packingList,
+    ownerEmail: owner.email,
+    ownerName: owner.name,
+    stage: "planning",
+    tasks: [],
+    dailySuggestions: [],
+    banner: {
+      title: "行程详情生成中",
+      body: "装备清单已就绪，任务与路线正在生成…",
+      tone: "neutral",
+      updatedAt: now,
+      fullPlanReady: false,
+    },
+    members: [
+      {
+        id: createId("member"),
+        email: owner.email,
+        name: owner.name,
+        avatarText: owner.avatarText,
+        role: "owner",
+        inviteStatus: "confirmed",
+        invitedAt: now,
+        confirmedAt: now,
+      },
+    ],
+    events: [
+      createEvent({
+        type: "trip_created",
+        actorName: owner.name,
+        title: "行程已创建",
+        body: `已保存 ${input.destination} 的装备清单，完整规划稍后补全。`,
+      }),
+    ],
+    notifications: [
+      {
+        id: createId("notice"),
+        tripId,
+        title: "装备清单已就绪",
+        body: "可开始收拾行李；任务与每日建议正在后台生成。",
+        createdAt: now,
+      },
+    ],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export async function generateFullPlanAndMergeIntoTrip(
+  existing: TripDocument,
+  input: CreateTripInput,
+  owner: SessionUser,
+  onProgress?: (step: PlanningStep, message: string) => void | Promise<void>,
+  onLlmDelta?: (chunk: string) => void,
+): Promise<TripDocument> {
+  const llmEnabled = hasLlmConfig();
+
+  onProgress?.("analyzing", "正在分析目的地特色与旅行主题...");
+  const generated = llmEnabled
+    ? await generateWithModel(input, onLlmDelta).catch((error) => {
+        console.error("generateWithModel failed", error);
+        onProgress?.("tasks", "LLM 生成失败，使用备用方案...");
+        return null;
+      })
+    : null;
+
+  onProgress?.("tasks", "正在生成行前准备清单...");
+  const plan = normalizeGeneratedPlan(input, generated ?? fallbackPlan(input));
+
+  onProgress?.("finalizing", "正在完成最终规划...");
+  const now = new Date().toISOString();
+
+  return {
+    ...existing,
+    name: plan.name || existing.name,
+    stage: plan.stage,
+    tasks: sortTasks(
+      plan.tasks.map((task) => ({
+        ...task,
+        id: task.id || createId("task"),
+      })),
+    ),
+    dailySuggestions: plan.dailySuggestions.map((suggestion) => ({
+      ...suggestion,
+      id: suggestion.id || createId("day"),
+    })),
+    banner: {
+      ...plan.banner,
+      updatedAt: now,
+      fullPlanReady: true,
+    },
+    packingList: existing.packingList,
+    events: [
+      createEvent({
+        type: "trip_replanned",
+        actorName: owner.name,
+        title: "完整行程已生成",
+        body: `已为 ${input.destination} 补全任务、路线与每日建议。`,
+      }),
+      ...existing.events,
+    ],
+    notifications: [
+      {
+        id: createId("notice"),
+        tripId: existing.id,
+        title: "旅行计划已就绪",
+        body: `「${plan.name}」的任务与建议已更新。`,
+        createdAt: now,
+      },
+      ...existing.notifications,
+    ],
     updatedAt: now,
   };
 }
@@ -328,6 +463,10 @@ async function generateWithModel(
 ): Promise<GeneratedTripPlan> {
   const themeList = input.themes.map((theme) => getThemeLabel(theme)).join("、");
   const tripDays = Math.ceil((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const tagSuffix = input.customTags?.length ? `\n- 自定义标签：${input.customTags.join("、")}` : "";
+  const marathonBlock = tripHasMarathonProfile(input)
+    ? `\n\n【马拉松/路跑赛事模式】用户已勾选马拉松/跑步相关标签。请围绕「${input.destination}」以参赛为核心生成计划：\n- phases.pre（8-12 项）：领物/博览会、定妆照、盐丸与能量胶分装、赛日早餐与前往起点交通、存衣与热身等。\n- phases.during（3-4 项）：须含与赛事相关的真实地点名与经纬度（起点、途中参考点、终点领物/拉伸区等）。\n- phases.post：放松恢复、成绩/照片下载、装备清洗等。\n- packingList：必须输出空数组 []（装备清单已由系统固定为跑马模板，禁止输出通用旅行装备）。`
+    : "";
 
   const messages = [
     {
@@ -337,7 +476,8 @@ async function generateWithModel(
     },
     {
       role: "user" as const,
-      content: `请为这次旅行生成完整计划：\n- 目的地：${input.destination}\n- 日期：${input.startDate} 到 ${input.endDate}（共${tripDays}天）\n- 人数：${input.travelerCount ?? 1}人\n- 主题：${themeList}\n\n【重要要求 - 必须遵守】：\n\n1. **phases.pre（行前任务 8-12 个）**：必须包含以下具体任务\n   - 证件类：办理护照/港澳台通行证（如需要）、准备身份证原件\n   - 交通住宿：预订往返机票/车票、预订酒店/民宿\n   - 财务准备：兑换当地货币（如出境）、准备信用卡和现金\n   - 通讯网络：购买当地 SIM 卡/eSIM、开通国际漫游\n   - 旅行保险：购买旅行意外险\n   - 物品采购：根据${tripDays}天行程准备衣物、购买一次性内衣裤（${tripDays * 2}件）、准备洗漱用品分装瓶\n   - 电子产品：准备充电器、充电宝、转换插头（如出境）\n   - 药品准备：感冒药、肠胃药、创可贴、驱蚊液\n   - 景点预约：提前预约热门景点门票\n   - 每个任务必须具体可执行，标题清晰描述要做什么\n\n2. **phases.during（旅途任务 3-4 个）**：\n   - 必须包含真实景点名称（locationName）和坐标（lat/lng）\n   - 每天安排合理的游览时间\n   - 包含当地特色美食体验\n\n3. **phases.post（旅后任务 1-2 个）**：\n   - 照片整理、费用复盘、评价分享\n\n4. **packingList（装备清单）**：根据旅行类型和主题生成专业的分类装备清单，每个分类包含具体子项。\n\n   **分类规则 - 根据旅行类型选择**：\n\n   🏔️ **登山/徒步/户外探险类型**（主题包含自然、户外等）：\n   - 👉衣裤篇：速干衣/打底（基础层）、抓绒、薄羽绒（中间层）、冲锋衣/裤（防护层）、厚羽绒\n   - 👉鞋袜穿戴篇：登山鞋、冰爪、羊毛袜、防水手套、羊毛帽\n   - 👉攀登装备篇：登山杖、安全带、雪镜、头灯、头盔\n   - 👉负载篇：登山包、充电宝、急救包、垃圾袋、保温杯\n   - 👉睡眠篇：睡袋、帐篷、防潮垫\n\n   🏖️ **海边/海岛类型**（目的地包含海岛、三亚、马尔代夫等）：\n   - 👉衣物篇：泳衣/泳裤、防晒衣、沙滩裤、速干毛巾、拖鞋\n   - 👉防护篇：防晒霜（高倍数）、墨镜、遮阳帽、防晒袖套\n   - 👉水上装备篇：防水手机袋、浮潜镜、呼吸管、沙滩鞋\n   - 👉电子篇：手机充电器、充电宝、耳机、转换插头\n   - 👉证件篇：身份证、护照、机票确认单、酒店预订单\n\n   🏙️ **城市观光/文化类型**（主题包含文化、购物、美食等）：\n   - 👉衣物篇：舒适步行鞋、换洗衣物（${tripDays}套）、外套、睡衣\n   - 👉电子篇：手机充电器、充电宝、耳机、转换插头、自拍杆\n   - 👉个护篇：牙刷、牙膏、洗发水/沐浴露分装瓶、护肤品、化妆品\n   - 👉药品篇：感冒药、肠胃药、创可贴、晕车药、驱蚊液\n   - 👉证件篇：身份证、护照、银行卡、现金、行程单\n   - 👉杂物篇：折叠伞、水杯、纸巾、湿巾、小背包\n\n   ❄️ **冰雪/滑雪类型**（目的地包含哈尔滨、北海道、阿尔卑斯等）：\n   - 👉保暖衣物篇：保暖内衣、抓绒衣、厚羽绒、滑雪服、滑雪裤\n   - 👉配件篇：保暖手套、羊毛帽、围巾、厚羊毛袜、暖宝宝\n   - 👉滑雪装备篇：滑雪镜、滑雪袜、护脸、滑雪手套\n   - 👉电子篇：充电宝（低温易耗电）、防水手机袋、头灯\n   - 👉药品篇：感冒药、暖宫贴、创可贴、润唇膏\n\n   **输出格式要求**：\n   - 根据旅行主题和目的地选择最匹配的分类方案\n   - 每个分类作为一个 item，name 为分类名称（如"👉衣裤篇"、"👉鞋袜穿戴篇"）\n   - 每个分类必须包含 subItems 数组，列出该分类下的所有子物品\n   - subItems 中的每个物品都有 name 字段\n   - category 字段指定分类类型（clothing/electronics/toiletries/documents/weather/gear）\n   - 分类数量：5-6 个分类\n   - 每个分类子物品数量：4-6 个具体物品\n`,
+      content:
+        `请为这次旅行生成完整计划：\n- 目的地：${input.destination}\n- 日期：${input.startDate} 到 ${input.endDate}（共${tripDays}天）\n- 人数：${input.travelerCount ?? 1}人\n- 主题：${themeList || "无"}${tagSuffix}\n\n【重要要求 - 必须遵守】：\n\n1. **phases.pre（行前任务 8-12 个）**：必须包含以下具体任务\n   - 证件类：办理护照/港澳台通行证（如需要）、准备身份证原件\n   - 交通住宿：预订往返机票/车票、预订酒店/民宿\n   - 财务准备：兑换当地货币（如出境）、准备信用卡和现金\n   - 通讯网络：购买当地 SIM 卡/eSIM、开通国际漫游\n   - 旅行保险：购买旅行意外险\n   - 物品采购：根据${tripDays}天行程准备衣物、购买一次性内衣裤（${tripDays * 2}件）、准备洗漱用品分装瓶\n   - 电子产品：准备充电器、充电宝、转换插头（如出境）\n   - 药品准备：感冒药、肠胃药、创可贴、驱蚊液\n   - 景点预约：提前预约热门景点门票\n   - 每个任务必须具体可执行，标题清晰描述要做什么\n\n2. **phases.during（旅途任务 3-4 个）**：\n   - 必须包含真实景点名称（locationName）和坐标（lat/lng）\n   - 每天安排合理的游览时间\n   - 包含当地特色美食体验\n\n3. **phases.post（旅后任务 1-2 个）**：\n   - 照片整理、费用复盘、评价分享\n\n4. **packingList（装备清单）**：根据旅行类型和主题生成专业的分类装备清单，每个分类包含具体子项。\n\n   **分类规则 - 根据旅行类型选择**：\n\n   🏔️ **登山/徒步/户外探险类型**（主题包含自然、户外等）：\n   - 👉衣裤篇：速干衣/打底（基础层）、抓绒、薄羽绒（中间层）、冲锋衣/裤（防护层）、厚羽绒\n   - 👉鞋袜穿戴篇：登山鞋、冰爪、羊毛袜、防水手套、羊毛帽\n   - 👉攀登装备篇：登山杖、安全带、雪镜、头灯、头盔\n   - 👉负载篇：登山包、充电宝、急救包、垃圾袋、保温杯\n   - 👉睡眠篇：睡袋、帐篷、防潮垫\n\n   🏖️ **海边/海岛类型**（目的地包含海岛、三亚、马尔代夫等）：\n   - 👉衣物篇：泳衣/泳裤、防晒衣、沙滩裤、速干毛巾、拖鞋\n   - 👉防护篇：防晒霜（高倍数）、墨镜、遮阳帽、防晒袖套\n   - 👉水上装备篇：防水手机袋、浮潜镜、呼吸管、沙滩鞋\n   - 👉电子篇：手机充电器、充电宝、耳机、转换插头\n   - 👉证件篇：身份证、护照、机票确认单、酒店预订单\n\n   🏙️ **城市观光/文化类型**（主题包含文化、购物、美食等）：\n   - 👉衣物篇：舒适步行鞋、换洗衣物（${tripDays}套）、外套、睡衣\n   - 👉电子篇：手机充电器、充电宝、耳机、转换插头、自拍杆\n   - 👉个护篇：牙刷、牙膏、洗发水/沐浴露分装瓶、护肤品、化妆品\n   - 👉药品篇：感冒药、肠胃药、创可贴、晕车药、驱蚊液\n   - 👉证件篇：身份证、护照、银行卡、现金、行程单\n   - 👉杂物篇：折叠伞、水杯、纸巾、湿巾、小背包\n\n   ❄️ **冰雪/滑雪类型**（目的地包含哈尔滨、北海道、阿尔卑斯等）：\n   - 👉保暖衣物篇：保暖内衣、抓绒衣、厚羽绒、滑雪服、滑雪裤\n   - 👉配件篇：保暖手套、羊毛帽、围巾、厚羊毛袜、暖宝宝\n   - 👉滑雪装备篇：滑雪镜、滑雪袜、护脸、滑雪手套\n   - 👉电子篇：充电宝（低温易耗电）、防水手机袋、头灯\n   - 👉药品篇：感冒药、暖宫贴、创可贴、润唇膏\n\n   **输出格式要求**：\n   - 根据旅行主题和目的地选择最匹配的分类方案\n   - 每个分类作为一个 item，name 为分类名称（如"👉衣裤篇"、"👉鞋袜穿戴篇"）\n   - 每个分类必须包含 subItems 数组，列出该分类下的所有子物品\n   - subItems 中的每个物品都有 name 字段\n   - category 字段指定分类类型（clothing/electronics/toiletries/documents/weather/gear）\n   - 分类数量：5-6 个分类\n   - 每个分类子物品数量：4-6 个具体物品\n` + marathonBlock,
     },
   ];
 
@@ -362,6 +502,10 @@ export async function generatePackingListOnly(
   input: CreateTripInput,
   onLlmDelta?: (chunk: string) => void,
 ) {
+  if (tripHasMarathonProfile(input)) {
+    return buildMarathonPackingListRaw();
+  }
+
   const themeList = input.themes.map((theme) => getThemeLabel(theme)).join("、");
   const tripDays = Math.ceil((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
