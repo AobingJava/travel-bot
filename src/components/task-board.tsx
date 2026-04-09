@@ -15,7 +15,6 @@ import {
 
 const phases: Array<{ key: TaskPhase; label: string }> = [
   { key: "during", label: "旅途打卡" },
-  { key: "pre", label: "代办清单" },
   { key: "post", label: "旅后总结" },
 ];
 
@@ -28,10 +27,6 @@ export function TaskBoard({
   tasks: TripTask[];
   banner: TripBanner;
 }) {
-  const duringTasks = useMemo(
-    () => tasks.filter((task) => task.phase === "during"),
-    [tasks],
-  );
   const [activePhase, setActivePhase] = useState<TaskPhase>("during");
 
   const visibleTasks = useMemo(
@@ -101,9 +96,7 @@ export function TaskBoard({
         </div>
       </div>
 
-      {activePhase === "during" ? (
-        <TripMap tasks={duringTasks} />
-      ) : null}
+      {activePhase === "during" && <TripMap tasks={tasks.filter((task) => task.phase === "during")} />}
 
       <div className="space-y-2">
         {visibleTasks.map((task) => (
