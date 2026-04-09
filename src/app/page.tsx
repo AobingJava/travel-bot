@@ -3,15 +3,17 @@ import Link from "next/link";
 import { CreateTripForm } from "@/components/create-trip-form";
 import { HomeMobileNav } from "@/components/home-mobile-nav";
 import { getHomeBootstrap } from "@/lib/app-service";
-import { formatDateRange, getThemeLabel } from "@/lib/utils";
+import { formatDateRange } from "@/lib/utils";
+import type { TripStage, TripDocument } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const bootstrap = await getHomeBootstrap();
-  const featuredTrip = bootstrap.trips.find(
-    (trip) => trip.id === bootstrap.featuredTripId,
-  );
+
+  // 按状态分类旅行计划
+  const ongoingTrips = bootstrap.trips.filter((trip) => trip.stage === "ongoing" || trip.stage === "planning");
+  const completedTrips = bootstrap.trips.filter((trip) => trip.stage === "completed");
 
   return (
     <main className="mx-auto flex w-full max-w-[430px] flex-col gap-4 px-4 pt-6 pb-28 sm:pt-10">
@@ -53,80 +55,69 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Featured trip */}
-      {featuredTrip ? (
+      {/* 进行中的旅行 */}
+      {ongoingTrips.length > 0 && (
         <section className="rounded-3xl border border-white/70 bg-white/80 p-4 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-medium text-slate-400">最近的旅行计划</p>
-              <h2 className="mt-1.5 text-xl font-bold text-slate-950">
-                {featuredTrip.name}
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                {formatDateRange(featuredTrip.startDate, featuredTrip.endDate)}
-              </p>
-            </div>
-            <Link
-              href={`/trips/${featuredTrip.id}`}
-              className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.97]"
-            >
-              查看
-            </Link>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            <div className="rounded-2xl bg-slate-950 p-4 text-white shadow-[0_12px_40px_rgba(15,23,42,0.18)]">
-              <div className="flex items-center">
-                <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
-                  实时更新
-                </span>
-              </div>
-              <p className="mt-3 text-base font-semibold">{featuredTrip.banner.title}</p>
-              <p className="mt-2 text-[13px] leading-6 text-white/80">
-                {featuredTrip.banner.body}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-4">
-              <p className="text-xs font-medium text-slate-400">这次旅行的关键词</p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {featuredTrip.themes.map((theme) => (
-                  <span
-                    key={theme}
-                    className="rounded-full bg-mint-100 px-2.5 py-1.5 text-[11px] font-semibold text-mint-700"
-                  >
-                    {getThemeLabel(theme)}
-                  </span>
-                ))}
-              </div>
-              <p className="mt-3 text-[13px] leading-6 text-slate-500">
-                旅伴邀请、任务完成和行程变更都会被写进动态流，所有人都能看到最新状态。
-              </p>
-            </div>
+          <p className="text-xs font-medium text-slate-400 mb-3">进行中的旅行</p>
+          <div className="space-y-2">
+            {ongoingTrips.map((trip) => (
+              <TripCard key={trip.id} trip={trip} />
+            ))}
           </div>
         </section>
-      ) : null}
+      )}
 
-      {/* Highlights */}
-      <section className="rounded-3xl border border-white/70 bg-white/80 p-4 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
-        <p className="text-xs font-medium text-slate-400">这版的核心体验</p>
-        <div className="mt-3 space-y-2">
-          {[
-            "创建旅行页默认就是移动端表单，不再使用桌面双栏。",
-            "登录完全独立到 /auth 页面，首页只保留入口。",
-            "底部导航和详情页保持一致，可直接切到任务、旅伴、动态。",
-          ].map((item) => (
-            <div
-              key={item}
-              className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-[13px] leading-6 text-slate-600"
-            >
-              {item}
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* 已完成的旅行 */}
+      {completedTrips.length > 0 && (
+        <section className="rounded-3xl border border-white/70 bg-white/80 p-4 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+          <p className="text-xs font-medium text-slate-400 mb-3">已完成的旅行</p>
+          <div className="space-y-2">
+            {completedTrips.map((trip) => (
+              <TripCard key={trip.id} trip={trip} />
+            ))}
+          </div>
+        </section>
+      )}
 
-      <HomeMobileNav featuredTripId={featuredTrip?.id} />
+      <HomeMobileNav />
     </main>
+  );
+}
+
+function TripCard({ trip }: { readonly trip: TripDocument }) {
+  const stageLabel: Record<TripStage, string> = {
+    ongoing: "进行中",
+    planning: "筹备中",
+    completed: "已完成",
+    draft: "草稿",
+  };
+
+  const stageColor: Record<TripStage, string> = {
+    ongoing: "bg-emerald-50 text-emerald-700",
+    planning: "bg-blue-50 text-blue-700",
+    completed: "bg-slate-100 text-slate-600",
+    draft: "bg-amber-50 text-amber-700",
+  };
+
+  return (
+    <Link
+      href={`/trips/${trip.id}`}
+      className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-3.5 transition hover:bg-slate-50"
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <h3 className="truncate text-[15px] font-semibold text-slate-950">
+            {trip.name}
+          </h3>
+          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${stageColor[trip.stage]}`}>
+            {stageLabel[trip.stage]}
+          </span>
+        </div>
+        <p className="text-[12px] text-slate-500">{formatDateRange(trip.startDate, trip.endDate)}</p>
+      </div>
+      <svg className="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </Link>
   );
 }
