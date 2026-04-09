@@ -268,7 +268,7 @@ export function TripMembers({
 
       <section className="space-y-3 pb-20">
         {/* 高德地图组件 */}
-        <AMapComponent members={trip.members} destination={trip.destination} onCallClick={handleCallClick} />
+        <AMapComponent members={trip.members} onCallClick={handleCallClick} />
 
         {/* 集合信息卡片 */}
         <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-sm">
@@ -332,7 +332,7 @@ export function TripMembers({
           <div className="text-left">
             <p className="font-bold text-lg">呼叫伙伴</p>
             <p className="text-xs text-white/80">
-              {trip.members.filter((m) => m.id !== trip.ownerId).length} 位好友在线
+              {trip.members.filter((m) => m.role !== "owner").length} 位好友在线
             </p>
           </div>
           <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md">
