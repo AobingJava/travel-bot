@@ -235,28 +235,66 @@ export function CreateTripForm() {
       const startDate = formData.get("startDate") as string;
       const endDate = formData.get("endDate") as string;
 
-      const response = await fetch("/api/trips", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          destination,
-          startDate,
-          endDate,
-          themes: form.themes,
-          customTags: form.customTags,
-        }),
-      });
+      try {
+        // 使用流式 API
+        const response = await fetch("/api/trips/stream", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            destination,
+            startDate,
+            endDate,
+            themes: form.themes,
+            customTags: form.customTags,
+            name: `${destination} ${tripThemes.filter((theme) => form.themes.includes(theme.key)).map((theme) => theme.label).join("、")} 之旅`,
+          }),
+        });
 
-      const payload = (await response.json()) as { error?: string; tripId?: string };
-      if (!response.ok || !payload.tripId) {
-        setError(payload.error ?? "生成失败，请稍后再试。");
-        return;
+        if (!response.ok) {
+          const error = await response.json();
+          setError(error.error ?? "生成失败，请稍后再试。");
+          return;
+        }
+
+        // 读取流式响应
+        const reader = response.body?.getReader();
+        if (!reader) {
+          setError("浏览器不支持流式读取");
+          return;
+        }
+
+        const decoder = new TextDecoder();
+        let tripId = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          // 解析 SSE 格式的消息
+          const lines = chunk.split("\n");
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === "complete") {
+                tripId = data.tripId;
+              } else if (data.type === "error") {
+                setError(data.message);
+                return;
+              }
+            }
+          }
+        }
+
+        if (tripId) {
+          // 跳转到规划动态页面
+          router.push(`/trips/${tripId}/planning`);
+        }
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "生成失败，请稍后再试。");
       }
-
-      // 跳转到规划动态页面
-      router.push(`/trips/${payload.tripId}/planning`);
     });
   }
 

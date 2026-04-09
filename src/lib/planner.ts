@@ -117,22 +117,40 @@ const replanSchema = z.object({
   ),
 });
 
+export type PlanningStep =
+  | "analyzing"
+  | "weather"
+  | "attractions"
+  | "tasks"
+  | "route"
+  | "packing"
+  | "finalizing";
+
 export async function generateTripDocument(
   input: CreateTripInput,
   owner: SessionUser,
+  onProgress?: (step: PlanningStep, message: string) => void | Promise<void>,
 ): Promise<TripDocument> {
   const llmEnabled = hasLlmConfig();
+
+  onProgress?.("analyzing", "正在分析目的地特色与旅行主题...");
 
   const generated = llmEnabled
     ? await generateWithModel(input).catch((error) => {
         console.error("generateWithModel failed", error);
+        onProgress?.("tasks", "LLM 生成失败，使用备用方案...");
         return null;
       })
     : null;
 
+  onProgress?.("tasks", "正在生成行前准备清单...");
   const plan = normalizeGeneratedPlan(input, generated ?? fallbackPlan(input));
+
+  onProgress?.("packing", "正在整理装备清单...");
   const now = new Date().toISOString();
   const tripId = createId("trip");
+
+  onProgress?.("finalizing", "正在完成最终规划...");
 
   return {
     id: tripId,
@@ -1115,109 +1133,25 @@ function fallbackPlan(input: CreateTripInput): GeneratedTripPlan {
   };
 }
 
+import { generatePackingList } from "@/lib/packing-list";
+
 function generateFallbackPackingList(input: CreateTripInput): { id: string; name: string; category: "core" | "clothing" | "electronics" | "toiletries" | "documents" | "weather"; checked?: boolean; weatherDependent?: boolean }[] {
-  const destination = input.destination.toLowerCase();
-
-  // 核心必备物品
-  const coreItems = [
-    { id: createId("pack"), name: "护照/身份证", category: "core" as const },
-    { id: createId("pack"), name: "钱包和现金", category: "core" as const },
-    { id: createId("pack"), name: "手机", category: "core" as const },
-  ];
-
-  // 证件文件
-  let documentItems = [
-    { id: createId("pack"), name: "签证文件", category: "documents" as const },
-    { id: createId("pack"), name: "机票/车票确认单", category: "documents" as const },
-    { id: createId("pack"), name: "酒店预订确认", category: "documents" as const },
-  ];
-
-  // 衣物类 - 根据目的地调整
-  let clothingItems = [
-    { id: createId("pack"), name: "换洗衣物（内衣裤/袜子）", category: "clothing" as const },
-    { id: createId("pack"), name: "舒适步行鞋", category: "clothing" as const },
-  ];
-
-  // 根据目的地添加特殊衣物
-  if (destination.includes("海岛") || destination.includes("沙滩") || destination.includes("巴厘岛") || destination.includes("马尔代夫")) {
-    clothingItems = [
-      ...clothingItems,
-      { id: createId("pack"), name: "泳衣泳镜", category: "clothing" as const },
-      { id: createId("pack"), name: "沙滩拖鞋", category: "clothing" as const },
-    ];
-  } else if (destination.includes("瑞士") || destination.includes("阿尔卑斯") || destination.includes("雪山")) {
-    clothingItems = [
-      ...clothingItems,
-      { id: createId("pack"), name: "保暖外套", category: "clothing" as const },
-      { id: createId("pack"), name: "防滑鞋", category: "clothing" as const },
-    ];
-  }
-
-  // 天气相关物品 - 根据目的地判断
-  let weatherItems: { id: string; name: string; category: "weather"; weatherDependent: boolean }[] = [];
-  if (destination.includes("日本") || destination.includes("韩国") || destination.includes("台湾") || destination.includes("东南亚")) {
-    weatherItems = [...weatherItems, { id: createId("pack"), name: "折叠雨伞", category: "weather" as const, weatherDependent: true }];
-  }
-  if (destination.includes("海岛") || destination.includes("沙滩") || destination.includes("东南亚") || destination.includes("泰国") || destination.includes("巴厘岛")) {
-    weatherItems = [
-      ...weatherItems,
-      { id: createId("pack"), name: "防晒霜", category: "weather" as const, weatherDependent: true },
-      { id: createId("pack"), name: "太阳镜", category: "weather" as const, weatherDependent: true },
-    ];
-  }
-  if (destination.includes("户外") || destination.includes("登山") || destination.includes("徒步")) {
-    weatherItems = [...weatherItems, { id: createId("pack"), name: "防晒帽", category: "weather" as const, weatherDependent: true }];
-  }
-
-  // 数码电子
-  let electronicsItems = [
-    { id: createId("pack"), name: "充电器/数据线", category: "electronics" as const },
-    { id: createId("pack"), name: "充电宝", category: "electronics" as const },
-  ];
-
-  if (destination.includes("日本") || destination.includes("韩国") || destination.includes("城市")) {
-    electronicsItems = [...electronicsItems, { id: createId("pack"), name: "便携 WiFi/电话卡", category: "electronics" as const }];
-  }
-
-  // 个护健康
-  let toiletriesItems = [
-    { id: createId("pack"), name: "个人洗漱用品", category: "toiletries" as const },
-    { id: createId("pack"), name: "常用药品", category: "toiletries" as const },
-  ];
-
-  if (destination.includes("海岛") || destination.includes("东南亚") || destination.includes("热带")) {
-    toiletriesItems = [...toiletriesItems, { id: createId("pack"), name: "驱蚊液", category: "toiletries" as const }];
-  }
-
-  // 购物相关
-  if (input.themes.includes("shopping")) {
-    clothingItems = [...clothingItems, { id: createId("pack"), name: "折叠购物袋", category: "clothing" as const }];
-  }
-
-  // 户外活动
-  if (input.themes.includes("nature")) {
-    toiletriesItems = [...toiletriesItems, { id: createId("pack"), name: "轻便户外鞋", category: "toiletries" as const }];
-  }
-
-  // 根据旅行时长调整
   const days = Math.max(1, Math.ceil((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / (1000 * 60 * 60 * 24)));
-  if (days > 7) {
-    clothingItems = [...clothingItems, { id: createId("pack"), name: "折叠洗衣袋", category: "clothing" as const }];
-  }
 
-  // 根据人数
-  if ((input.travelerCount ?? 1) > 3) {
-    documentItems = [...documentItems, { id: createId("pack"), name: "应急联系人清单", category: "documents" as const }];
-  }
+  // 使用新的装备清单生成逻辑
+  const packingList = generatePackingList({
+    themes: input.themes,
+    tripDays: days,
+    customTags: input.customTags,
+  });
 
-  return [
-    ...coreItems,
-    ...documentItems,
-    ...clothingItems,
-    ...weatherItems,
-    ...electronicsItems,
-    ...toiletriesItems,
-  ].slice(0, 18);
+  return packingList.map((item) => ({
+    id: item.id,
+    name: item.name,
+    category: item.category,
+    checked: false,
+    weatherDependent: item.weatherDependent,
+  }));
 }
 
 function enumerateDates(startDate: string, endDate: string) {

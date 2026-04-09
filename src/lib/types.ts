@@ -51,6 +51,7 @@ export interface TripTask {
   travelMode?: TravelMode;
   routeHint?: string;
   photos?: string[];
+  voices?: { url: string; createdAt: string; duration?: number; userEmail?: string; userName?: string; userAvatarUrl?: string; transcript?: string }[];
 }
 
 export interface TripMember {

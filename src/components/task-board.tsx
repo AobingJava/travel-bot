@@ -17,18 +17,47 @@ export function TaskBoard({
   banner: TripBanner;
 }) {
   const [taskPhotos, setTaskPhotos] = useState<Record<string, string[]>>({});
+  const [taskVoices, setTaskVoices] = useState<Record<string, { url: string; createdAt: string; duration?: number; userEmail?: string; userName?: string; userAvatarUrl?: string; transcript?: string }[]>>({});
   const [userCheckinTasks, setUserCheckinTasks] = useState<TripTask[]>([]);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [recordingTaskId, setRecordingTaskId] = useState<string | null>(null);
 
   const duringTasks = useMemo(
     () => tasks.filter((task) => task.phase === "during"),
     [tasks],
   );
 
+  // 合并 AI 生成任务和用户打卡任务
   const visibleTasks = useMemo(
-    () => userCheckinTasks,
-    [userCheckinTasks],
+    () => [...duringTasks, ...userCheckinTasks],
+    [duringTasks, userCheckinTasks],
   );
+
+  // 计算打卡进度
+  const completedCount = visibleTasks.filter((task) => task.status === "done").length;
+  const totalCount = visibleTasks.length;
+  const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  // 加载任务照片
+  useMemo(() => {
+    visibleTasks.forEach((task) => {
+      if (!taskPhotos[task.id]) {
+        fetch(`/api/trips/${tripId}/tasks/${task.id}/photos`)
+          .then((res) => res.json())
+          .then((data) => {
+            setTaskPhotos((prev) => ({ ...prev, [task.id]: data.photos || [] }));
+          })
+          .catch(console.error);
+      }
+      if (!taskVoices[task.id]) {
+        fetch(`/api/trips/${tripId}/tasks/${task.id}/voice`)
+          .then((res) => res.json())
+          .then((data) => {
+            setTaskVoices((prev) => ({ ...prev, [task.id]: data.voices || [] }));
+          })
+          .catch(console.error);
+      }
+    });
+  }, [visibleTasks, tripId, taskPhotos, taskVoices]);
 
   const handlePhotoUpload = async (taskId: string, file: File) => {
     const formData = new FormData();
@@ -43,7 +72,6 @@ export function TaskBoard({
       if (response.ok) {
         const data = await response.json();
         setTaskPhotos((prev) => ({ ...prev, [taskId]: data.photos || [] }));
-        // 更新 TripMap 组件
         window.dispatchEvent(
           new CustomEvent("task-photo-updated", {
             detail: { taskId, photos: data.photos },
@@ -55,63 +83,60 @@ export function TaskBoard({
     }
   };
 
-  const handlePhotoDelete = async (taskId: string, photoUrl: string) => {
-    try {
-      const response = await fetch(`/api/trips/${tripId}/tasks/${taskId}/photos`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photoUrl }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setTaskPhotos((prev) => ({ ...prev, [taskId]: data.photos || [] }));
-        window.dispatchEvent(
-          new CustomEvent("task-photo-updated", {
-            detail: { taskId, photos: data.photos },
-          })
-        );
-      }
-    } catch (error) {
-      console.error("删除照片失败:", error);
+  const handleQuickCheckin = async () => {
+    if (!navigator.geolocation) {
+      alert("您的浏览器不支持定位功能");
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        try {
+          const response = await fetch(`/api/trips/${tripId}/checkin`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lat: latitude, lng: longitude }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setUserCheckinTasks((prev) => [...prev, data.task]);
+            setTaskPhotos((prev) => ({ ...prev, [data.task.id]: [] }));
+            window.dispatchEvent(
+              new CustomEvent("task-photo-updated", {
+                detail: { taskId: data.task.id, photos: [] },
+              })
+            );
+          }
+        } catch (error) {
+          console.error("创建打卡任务失败:", error);
+        }
+      },
+      (error) => {
+        console.error("获取位置失败:", error);
+        alert("无法获取您的位置信息，请检查浏览器权限设置");
+      }
+    );
   };
 
-  // 一键打卡：获取当前位置并找到最近的景点
-  const handleQuickCheckin = async () => {
-    setIsGettingLocation(true);
+  const handleVoiceRecord = async (taskId: string, audioBlob: Blob) => {
+    const formData = new FormData();
+    formData.append("voice", audioBlob, "recording.webm");
 
     try {
-      // 获取当前定位
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 30000,
-        });
-      });
-
-      const { latitude, longitude } = position.coords;
-
-      // 调用 API 创建打卡点
-      const response = await fetch(`/api/trips/${tripId}/checkin`, {
+      const response = await fetch(`/api/trips/${tripId}/tasks/${taskId}/voice`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lat: latitude,
-          lng: longitude,
-        }),
+        body: formData,
       });
 
       if (response.ok) {
         const data = await response.json();
-        // 添加新生成的打卡任务
-        setUserCheckinTasks((prev) => [...prev, data.task]);
+        setTaskVoices((prev) => ({ ...prev, [taskId]: data.voices || [] }));
       }
     } catch (error) {
-      console.error("获取位置失败:", error);
-    } finally {
-      setIsGettingLocation(false);
+      console.error("上传语音失败:", error);
     }
   };
 
@@ -120,12 +145,26 @@ export function TaskBoard({
       <div className="rounded-2xl border border-emerald-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(15,23,42,0.05)]">
         <div className="mb-3 flex items-start justify-between gap-4">
           <div className="space-y-0.5">
-            <p className="text-[13px] font-semibold text-slate-950">{banner.title}</p>
+            <p className="text-[18px] font-bold text-slate-950">打卡进度</p>
             <p className="text-[12px] leading-5 text-slate-500">{banner.body}</p>
           </div>
           <span className="rounded-full bg-mint-100 px-2.5 py-0.5 text-[11px] font-semibold text-mint-700">
             AI
           </span>
+        </div>
+        <div className="mt-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[12px] font-medium text-slate-600">
+              已完成 {completedCount}/{totalCount}
+            </span>
+            <span className="text-[12px] font-semibold text-emerald-700">{progress}%</span>
+          </div>
+          <div className="h-2.5 w-full rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
       </div>
 
@@ -138,37 +177,29 @@ export function TaskBoard({
             task={task}
             tripId={tripId}
             photos={taskPhotos[task.id] || []}
+            voices={taskVoices[task.id] || []}
             onPhotoUpload={handlePhotoUpload}
-            onPhotoDelete={handlePhotoDelete}
-            isUserCheckin={userCheckinTasks.some((t) => t.id === task.id)}
+            onVoiceRecord={handleVoiceRecord}
+            isRecording={recordingTaskId === task.id}
+            onStartRecording={() => setRecordingTaskId(task.id)}
+            onStopRecording={() => setRecordingTaskId(null)}
           />
         ))}
-
-        {/* 一键打卡按钮 */}
-        <button
-          onClick={handleQuickCheckin}
-          disabled={isGettingLocation}
-          className="w-full rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-4 text-center transition hover:bg-emerald-50 hover:border-emerald-400 active:scale-[0.98]"
-        >
-          <div className="flex items-center justify-center gap-2">
-            {isGettingLocation ? (
-              <>
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
-                <span className="text-[14px] font-semibold text-emerald-700">正在获取位置...</span>
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span className="text-[14px] font-semibold text-emerald-700">一键打卡</span>
-              </>
-            )}
-          </div>
-          <p className="text-[11px] text-emerald-600/70 mt-1">基于当前位置生成附近景点打卡</p>
-        </button>
       </div>
+
+      {/* 一键打卡按钮 - 在最后一条动态下面 */}
+      <button
+        onClick={handleQuickCheckin}
+        className="w-full rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50 py-4 text-[14px] font-semibold text-emerald-700 hover:bg-emerald-100 transition"
+      >
+        <span className="flex items-center justify-center gap-2">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          一键打卡
+        </span>
+      </button>
     </section>
   );
 }
@@ -177,24 +208,66 @@ function TaskCard({
   task,
   tripId,
   photos,
+  voices,
   onPhotoUpload,
-  onPhotoDelete,
-  isUserCheckin,
+  onVoiceRecord,
+  isRecording,
+  onStartRecording,
+  onStopRecording,
 }: {
   task: TripTask;
   tripId: string;
   photos: string[];
+  voices: { url: string; createdAt: string; duration?: number; userEmail?: string; userName?: string; userAvatarUrl?: string; transcript?: string }[];
   onPhotoUpload: (taskId: string, file: File) => void;
-  onPhotoDelete: (taskId: string, photoUrl: string) => void;
-  isUserCheckin?: boolean;
+  onVoiceRecord: (taskId: string, audioBlob: Blob) => void;
+  isRecording: boolean;
+  onStartRecording: () => void;
+  onStopRecording: () => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       onPhotoUpload(task.id, file);
       e.target.value = "";
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        onVoiceRecord(task.id, blob);
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      onStartRecording();
+    } catch (error) {
+      console.error("开始录音失败:", error);
+      alert("无法访问麦克风，请检查权限设置");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop();
+      onStopRecording();
     }
   };
 
@@ -215,7 +288,7 @@ function TaskCard({
               <h3
                 className={`text-[14px] font-semibold leading-snug ${
                   task.status === "done"
-                    ? "text-slate-400 line-through"
+                    ? "text-slate-400"
                     : "text-slate-950"
                 }`}
               >
@@ -260,7 +333,7 @@ function TaskCard({
             </p>
           ) : null}
 
-          {/* 照片上传区域 */}
+          {/* 照片和语音上传区域 */}
           <div className="mt-2">
             <div className="flex items-center gap-2">
               <input
@@ -280,9 +353,27 @@ function TaskCard({
                 </svg>
                 添加照片
               </button>
+              <button
+                onMouseDown={startRecording}
+                onMouseUp={stopRecording}
+                onMouseLeave={stopRecording}
+                onTouchStart={startRecording}
+                onTouchEnd={stopRecording}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium transition ${
+                  isRecording
+                    ? "bg-red-500 text-white animate-pulse"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                </svg>
+                {isRecording ? "松开结束" : "按住说话"}
+              </button>
             </div>
 
-            {/* 照片缩略图 - 只读，无删除按钮 */}
+            {/* 照片缩略图 */}
             {photos.length > 0 && (
               <div className="flex gap-1.5 mt-2 flex-wrap">
                 {photos.map((photoUrl, index) => (
@@ -295,6 +386,41 @@ function TaskCard({
                       alt={`照片 ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 语音列表 */}
+            {voices.length > 0 && (
+              <div className="space-y-2 mt-2">
+                {voices.map((voice, index) => (
+                  <div
+                    key={index}
+                    className="flex items-start gap-2 bg-slate-50 rounded-lg p-2"
+                  >
+                    {/* 用户头像 */}
+                    <div className="w-6 h-6 rounded-full overflow-hidden bg-slate-200 flex-shrink-0">
+                      <img
+                        src={voice.userAvatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(voice.userName || "User")}&background=random`}
+                        alt={voice.userName || "用户"}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <audio
+                          controls
+                          src={voice.url}
+                          className="h-8 flex-1"
+                        />
+                      </div>
+                      {voice.transcript && (
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          {voice.userName}: {voice.transcript}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

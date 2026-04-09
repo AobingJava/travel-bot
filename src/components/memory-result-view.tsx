@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TripDocument, Attraction, SessionUser } from "@/lib/types";
 import Link from "next/link";
 
@@ -16,9 +16,11 @@ interface SocialCardProps {
   coverImage?: string;
 }
 
-// 从 trip 任务中提取景点数据
+// 从 trip 任务中提取景点数据（只包含已完成的任务）
 function extractAttractionsFromTrip(trip: TripDocument): Attraction[] {
-  const duringTasks = trip.tasks.filter((task) => task.phase === "during");
+  const duringTasks = trip.tasks.filter(
+    (task) => task.phase === "during" && task.status === "done"
+  );
 
   return duringTasks.map((task, index) => ({
     id: task.id,
@@ -31,7 +33,7 @@ function extractAttractionsFromTrip(trip: TripDocument): Attraction[] {
     category: task.label || "suggestion",
     latitude: task.lat,
     longitude: task.lng,
-    images: [],
+    images: task.photos || [],
   }));
 }
 
@@ -40,25 +42,59 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
   const [showGenerateCard, setShowGenerateCard] = useState(false);
   const [generatedCards, setGeneratedCards] = useState<SocialCardProps[]>([]);
   const [isRecording, setIsRecording] = useState(false);
+  const [attractionsWithPhotos, setAttractionsWithPhotos] = useState<Attraction[]>([]);
 
   const attractions = extractAttractionsFromTrip(trip);
 
+  // 加载所有景点的照片
+  useEffect(() => {
+    const loadPhotos = async () => {
+      const loadedAttractions = await Promise.all(
+        attractions.map(async (attraction) => {
+          try {
+            const response = await fetch(`/api/trips/${trip.id}/tasks/${attraction.id}/photos`);
+            if (response.ok) {
+              const data = await response.json();
+              return { ...attraction, images: data.photos || [] };
+            }
+          } catch (error) {
+            console.error(`加载照片失败 for ${attraction.id}:`, error);
+          }
+          return attraction;
+        })
+      );
+      setAttractionsWithPhotos(loadedAttractions);
+    };
+
+    if (attractions.length > 0) {
+      loadPhotos();
+    }
+  }, [attractions, trip.id]);
+
   const toggleAttraction = (attraction: Attraction) => {
+    // 从 attractionsWithPhotos 中找到包含照片的景点数据
+    const attractionWithPhotos = attractionsWithPhotos.find((a) => a.id === attraction.id) || attraction;
+
     setSelectedAttractions((prev) =>
       prev.find((a) => a.id === attraction.id)
         ? prev.filter((a) => a.id !== attraction.id)
-        : [...prev, attraction]
+        : [...prev, attractionWithPhotos]
     );
   };
 
   const generateSocialCard = () => {
     if (selectedAttractions.length === 0) return;
 
+    // 从 attractionsWithPhotos 中找到对应的景点（包含照片数据）
+    const selectedWithPhotos = attractionsWithPhotos.filter((a) =>
+      selectedAttractions.some((s) => s.id === a.id)
+    );
+
     const card: SocialCardProps = {
-      attractions: selectedAttractions,
+      attractions: selectedWithPhotos,
       tripName: trip.name,
       destination: trip.destination,
-      coverImage: selectedAttractions[0]?.name,
+      coverImage: selectedWithPhotos[0]?.images?.[0],
     };
     setGeneratedCards((prev) => [card, ...prev]);
     setShowGenerateCard(false);
@@ -228,8 +264,8 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
         </div>
 
         <div className="space-y-2">
-          {attractions.length > 0 ? (
-            attractions.map((attraction) => (
+          {attractionsWithPhotos.length > 0 ? (
+            attractionsWithPhotos.map((attraction) => (
               <div
                 key={attraction.id}
                 onClick={() => toggleAttraction(attraction)}
@@ -239,16 +275,16 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
                     : "border-slate-200 hover:border-slate-300"
                 }`}
               >
-                <div
-                  className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                    selectedAttractions.find((a) => a.id === attraction.id)
-                      ? "border-orange-500 bg-orange-500"
-                      : "border-slate-300"
-                  }`}
-                >
-                  {selectedAttractions.find((a) => a.id === attraction.id) && (
-                    <svg className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+                  {attraction.images && attraction.images.length > 0 ? (
+                    <img
+                      src={attraction.images[0]}
+                      alt={attraction.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <svg className="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   )}
                 </div>
@@ -308,10 +344,17 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
 function SocialCard({ attractions, tripName, destination }: SocialCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const images = attractions.map((a) => ({
-    url: `https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&h=1000&fit=crop`,
-    caption: a.name,
-  }));
+  // 收集所有景点的照片
+  const allImages = attractions.flatMap((a) =>
+    a.images && a.images.length > 0
+      ? a.images.map((url) => ({ url, caption: a.name }))
+      : []
+  );
+
+  // 如果没有照片，使用默认图片
+  const images = allImages.length > 0
+    ? allImages
+    : [{ url: `https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&h=1000&fit=crop`, caption: tripName }];
 
   return (
     <div className="mx-auto max-w-sm overflow-hidden rounded-[2rem] bg-white shadow-2xl ring-1 ring-slate-100">

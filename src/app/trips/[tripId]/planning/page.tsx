@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { TripDocument } from "@/lib/types";
 
 const planningSteps = [
   { id: "analyzing", label: "分析目的地特色", icon: "🔍" },
@@ -14,13 +13,23 @@ const planningSteps = [
   { id: "finalizing", label: "完成行程计划", icon: "✨" },
 ];
 
+const stepMessages: Record<string, string> = {
+  analyzing: "正在分析目的地特色与旅行主题...",
+  weather: "正在查询天气与季节信息...",
+  attractions: "正在筛选热门景点与打卡地...",
+  tasks: "正在生成行前准备清单...",
+  route: "正在规划最佳游览路线...",
+  packing: "正在整理装备清单...",
+  finalizing: "正在完成最终规划...",
+};
+
 export default function PlanningPage() {
   const router = useRouter();
   const params = useParams<{ tripId: string }>();
   const tripId = params.tripId;
   const [currentStep, setCurrentStep] = useState(0);
-  const [trip, setTrip] = useState<TripDocument | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [liveMessage, setLiveMessage] = useState<string>(stepMessages.analyzing);
   const hasChecked = useRef(false);
 
   // 轮询检查行程是否生成完成
@@ -38,8 +47,8 @@ export default function PlanningPage() {
 
         // 检查行程是否已生成完成（有 tasks 且 tasks 长度>0）
         if (data.trip && data.trip.tasks && data.trip.tasks.length > 0) {
-          setTrip(data.trip);
-          // 延迟一下跳转到详情页，让用户看到完成状态
+          setCurrentStep(planningSteps.length);
+          setLiveMessage("行程已生成完成！");
           setTimeout(() => {
             router.replace(`/trips/${tripId}`);
           }, 800);
@@ -57,8 +66,7 @@ export default function PlanningPage() {
 
   // 动态更新步骤进度
   useEffect(() => {
-    if (trip) {
-      setCurrentStep(planningSteps.length);
+    if (currentStep >= planningSteps.length) {
       return;
     }
 
@@ -67,12 +75,14 @@ export default function PlanningPage() {
         if (prev >= planningSteps.length - 1) {
           return prev;
         }
-        return prev + 1;
+        const next = prev + 1;
+        setLiveMessage(stepMessages[planningSteps[next].id]);
+        return next;
       });
-    }, 1200);
+    }, 2500); // 每 2.5 秒更新一步，总共约 17 秒
 
     return () => clearInterval(interval);
-  }, [trip]);
+  }, [currentStep]);
 
   return (
     <main className="mx-auto flex w-full max-w-[430px] flex-col items-center justify-center min-h-screen px-4 py-12">
@@ -88,6 +98,16 @@ export default function PlanningPage() {
         <p className="text-slate-500 text-sm">
           基于目的地、天气和热门景点，AI 正在为你量身定制
         </p>
+      </div>
+
+      {/* 实时进度消息 */}
+      <div className="w-full mb-6">
+        <div className="rounded-xl bg-orange-50 border border-orange-200 px-4 py-3">
+          <p className="text-sm text-orange-800 font-medium flex items-center gap-2">
+            <span className="inline-block w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+            {liveMessage}
+          </p>
+        </div>
       </div>
 
       {/* 进度指示器 */}
@@ -185,7 +205,7 @@ export default function PlanningPage() {
       ) : (
         <div className="mt-6 rounded-2xl bg-blue-50 border border-blue-200 p-4 text-center">
           <p className="text-sm text-blue-700">
-            💡 基于 {planningSteps.length} 个维度智能规划，通常需要 15-30 秒
+            💡 基于 {planningSteps.length} 个维度智能规划，通常需要 30-60 秒
           </p>
         </div>
       )}

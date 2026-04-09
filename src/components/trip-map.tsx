@@ -85,12 +85,20 @@ export function TripMap({ tasks, taskPhotos = {} }: TripMapProps) {
       const color = getMarkerColor(task.label);
       const taskPhotos = photos[task.id] || [];
 
-      // 如果有照片，在标记下方显示小方块
-      const photoIndicators = taskPhotos.length > 0
-        ? `<div style="display:flex;gap:2px;margin-top:4px;justify-content:center;">
-            ${taskPhotos.slice(0, 4).map(() =>
-              `<div style="width:6px;height:6px;border-radius:2px;background:${color};"></div>`
-            ).join("")}
+      // 如果有照片，在标记上显示第一张照片的缩略图
+      const photoThumb = taskPhotos.length > 0
+        ? `<div style="
+            position:absolute;
+            bottom:-4px;
+            right:-4px;
+            width:20px;
+            height:20px;
+            border-radius:4px;
+            overflow:hidden;
+            border:2px solid ${color};
+            box-shadow:0 2px 8px rgba(15,23,42,0.2);
+          ">
+            <img src="${taskPhotos[0]}" style="width:100%;height:100%;object:cover;" />
           </div>`
         : "";
 
@@ -101,6 +109,7 @@ export function TripMap({ tasks, taskPhotos = {} }: TripMapProps) {
         font-size:11px;font-weight:700;white-space:nowrap;
         box-shadow:0 8px 24px rgba(15,23,42,0.16);
         border:1px solid rgba(226,232,240,0.95);
+        position:relative;
       ">
         <span style="
           display:flex;align-items:center;justify-content:center;
@@ -108,7 +117,7 @@ export function TripMap({ tasks, taskPhotos = {} }: TripMapProps) {
           background:${color};color:#fff;font-size:11px;font-weight:700;
         ">${index + 1}</span>
         <span>${task.locationName ?? task.title}</span>
-        ${photoIndicators}
+        ${photoThumb}
       </div>`;
 
       const marker = new AMap.Marker({
@@ -283,46 +292,6 @@ export function TripMap({ tasks, taskPhotos = {} }: TripMapProps) {
             </div>
           </div>
         ) : null}
-      </div>
-
-      <div className="space-y-2">
-        {mapTasks.map((task, index) => (
-          <article
-            key={task.id}
-            className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-[0_2px_12px_rgba(15,23,42,0.04)]"
-          >
-            <div className="flex items-start gap-3">
-              <div
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
-                style={{ backgroundColor: getMarkerColor(task.label) }}
-              >
-                {index + 1}
-              </div>
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-[14px] font-semibold text-slate-950">{task.title}</h3>
-                  <span className="text-[12px] font-medium text-slate-400">
-                    {task.scheduledTime ? `${task.scheduledTime} 出发` : "时间待定"}
-                  </span>
-                </div>
-                <p className="text-[12px] text-slate-500">
-                  {task.locationName ?? "待确认地点"}
-                  {task.durationMinutes ? ` · 停留约 ${task.durationMinutes} 分钟` : ""}
-                </p>
-                <p className="text-[12px] leading-5 text-slate-600">
-                  {task.routeHint ?? task.notes ?? "按当前顺序推进即可。"}
-                </p>
-                {task.travelMinutes ? (
-                  <p className="text-[11px] font-medium text-emerald-700">
-                    下一段建议
-                    {getTravelModeLabel(task.travelMode)}
-                    {task.travelMinutes} 分钟
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </article>
-        ))}
       </div>
     </section>
   );

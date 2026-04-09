@@ -18,6 +18,8 @@ const avatarUrls = [
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCQwUb-w5g57wLmkzYGflW9SWZZCcRXXb9aSqAZWesTUBwaE4fuyRTGeaTTLjpKxiRHLeBtOTp2oqM0o1PNPJMozm32sW9eMGI5QnQgdwWqsZTn8gwi-zs8nRjxaCNM-4d4H7iNXPq3b2oT3EbpXeXpUqA2O3xoJI8X2aFC6h_bnFhl6K8DY5rHrIkYn456IJcvfg7hTEW9KxJXWI2gUTZcitZuvxEy1xHV_MHrhzkycKZMinfaX_hQ4CjgHkzi5TIRhNRrA4YzG3Gz",
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCFdypkcJxbwFOfFfca1Y0sx1AaAEFGqid5CEAuKTNysZHu5YDncd0tzm5DqBBsP8N4XRqDE-9MbSCR-oAbnKgcuVdZRl-fAc1IpP0VbYQh_1ufm0bPf4w6LynGcxMRPLjQFNRKvsxK611Rh1ORvNIyf0dp31NZxSGWFDtnEIWcT73JHxhjzsPuiXcC7PfjgrWwpznnyw5guH9Mybwtcjo3likSBtWRrhBuq8-sgT_7UXRzNh1Uq-3615kLPQ2ruqM8Vq0wFn6G1KSp",
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCMKvbpNKJG8j1JmkB4GxJHVe-ax-wvSx3mtudIp3uZwCNJA_lzrsUT10qujZVcJ46kAYpYhuB2hYfdAmPHRsQhw4QDJ2z03UbcaJ_UqwD_Scb6OHuQw6sBe4eqcLCC_OifVCj-KE8zOVR99App8_2FCCJi0-dHo1lMO5XK_-BVOplltb11yxg0LMBkhJEVykzrIK1Bfr3_PjJ9zP-W-dSn7bZFhBYDSUcQHnVS8QVrWkVukXK9cFS_jJiJybWRyJVtk_6lAXI6Jd2h",
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuD6RKo8fYHqwHqxqGm8bR7zqJxKjLp8vCz5TnQjKz9xVqJm3Yw8Lp6nRq4sT2vU5wX7yZ9aB1cD3eF5gH7iJ9kL1mN3oP5qR7sT9uV1wX3yZ5aB7cD9eF1gH3i",
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuBnC4dE6fG8hI0jK2lM4nO6pQ8rS0tU2vW4xY6zA8bC0dE2fG4hI6jK8lM0nO2pQ4rS6tU8vW0xY2zA4bC6dE8fG0hI2jK4lM6nO8pQ0rS2tU4vW6xY8zA0bC",
 ];
 
 function getAvatarUrl(index: number): string {
@@ -68,20 +70,18 @@ export function InviteMemberForm({ trip }: { trip: TripDocument }) {
     }
   };
 
-  // 显示前 4 个旅伴头像
-  const visibleMembers = trip.members.slice(0, 4);
-  const remainingCount = trip.members.length - 4;
+  // 显示前 6 个旅伴头像
+  const visibleMembers = trip.members.slice(0, 6);
+  const remainingCount = trip.members.length - 6;
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
-      {/* 行程动态内容 */}
       <div className="flex flex-col gap-4">
         <div>
           <h3 className="text-base font-bold text-slate-950">行程动态</h3>
           <p className="text-sm text-slate-500">
             大家已准备就绪。距离出发还有{daysLeft}天！
           </p>
-          {/* 旅行主题标签 - 位于日期下面 */}
           {trip.themes && trip.themes.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {trip.themes.map((theme) => (
@@ -95,7 +95,6 @@ export function InviteMemberForm({ trip }: { trip: TripDocument }) {
             </div>
           )}
         </div>
-        {/* 旅伴头像列表和邀请按钮 - 同一行 */}
         <div className="flex items-center justify-between">
           <div className="flex -space-x-2">
             {visibleMembers.map((member, index) => (
@@ -128,7 +127,6 @@ export function InviteMemberForm({ trip }: { trip: TripDocument }) {
               </div>
             )}
           </div>
-          {/* 邀请好友按钮 - 靠右对齐 */}
           <button
             type="button"
             onClick={handleShare}
@@ -139,13 +137,6 @@ export function InviteMemberForm({ trip }: { trip: TripDocument }) {
             </svg>
             <span className="text-xs font-bold">{hasInvited ? "已邀请" : "邀请好友"}</span>
           </button>
-        </div>
-        {/* 进度条 */}
-        <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all"
-            style={{ width: `${Math.min(100, (1 - daysLeft / 14) * 100)}%` }}
-          />
         </div>
       </div>
     </div>

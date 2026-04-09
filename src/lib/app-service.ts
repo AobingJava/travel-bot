@@ -354,7 +354,7 @@ function makeEvent({
   } satisfies TripEvent;
 }
 
-function getRepositoryFallbackUser() {
+export function getRepositoryFallbackUser() {
   return {
     email: "aihe@example.com",
     name: "Aihe",
