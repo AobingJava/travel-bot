@@ -3,7 +3,6 @@ import Link from "next/link";
 import { CreateTripForm } from "@/components/create-trip-form";
 import { HomeMobileNav } from "@/components/home-mobile-nav";
 import { getHomeBootstrap } from "@/lib/app-service";
-import { formatDateRange } from "@/lib/utils";
 import type { TripStage, TripDocument } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -45,11 +44,21 @@ export default async function HomePage() {
         <CreateTripForm />
       </section>
 
-      {/* 进行中的旅行 */}
+      {/* 进行中的旅行 - 横向滚动卡片 */}
       {ongoingTrips.length > 0 && (
         <section className="rounded-3xl bg-white p-4 shadow-[0px_20px_40px_rgba(78,33,32,0.04)]">
-          <p className="text-xs font-medium text-slate-400 mb-3">进行中的旅行</p>
-          <div className="space-y-2">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-medium text-slate-400">进行中的旅行</p>
+            <div className="flex items-center gap-1 text-slate-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
             {ongoingTrips.map((trip) => (
               <TripCard key={trip.id} trip={trip} />
             ))}
@@ -89,25 +98,30 @@ function TripCard({ trip }: { readonly trip: TripDocument }) {
     draft: "bg-amber-50 text-amber-700",
   };
 
+  // 生成目的地封面图（使用 Unsplash 根据目的地关键词）
+  const coverImage = `https://source.unsplash.com/300x400/?${encodeURIComponent(trip.destination)},travel,landscape`;
+
   return (
     <Link
       href={`/trips/${trip.id}`}
-      className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-3.5 transition hover:bg-slate-50"
+      className="flex-shrink-0 w-[140px] rounded-2xl overflow-hidden border border-slate-200/80 bg-white shadow-sm transition hover:shadow-md"
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <h3 className="truncate text-[15px] font-semibold text-slate-950">
-            {trip.name}
-          </h3>
-          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${stageColor[trip.stage]}`}>
-            {stageLabel[trip.stage]}
-          </span>
+      {/* 封面图 */}
+      <div className="relative h-[160px] overflow-hidden">
+        <img
+          src={coverImage}
+          alt={trip.destination}
+          className="w-full h-full object-cover transition-transform hover:scale-105"
+        />
+        {/* 目的地名称叠加在图片底部 */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
+          <p className="text-white text-sm font-semibold truncate">{trip.destination}</p>
         </div>
-        <p className="text-[12px] text-slate-500">{formatDateRange(trip.startDate, trip.endDate)}</p>
+        {/* 状态标签 */}
+        <span className={`absolute top-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-semibold backdrop-blur-sm ${stageColor[trip.stage]}`}>
+          {stageLabel[trip.stage]}
+        </span>
       </div>
-      <svg className="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-      </svg>
     </Link>
   );
 }
