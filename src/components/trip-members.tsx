@@ -35,10 +35,41 @@ function AMapComponent({
   const mapInstanceRef = useRef<any>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [amapLoaded, setAmapLoaded] = useState(false);
+
+  // 等待高德地图加载完成
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // 检查是否已经加载
+    if (window.AMap) {
+      setAmapLoaded(true);
+      return;
+    }
+
+    // 轮询等待地图加载
+    const checkInterval = setInterval(() => {
+      if (window.AMap) {
+        clearInterval(checkInterval);
+        setAmapLoaded(true);
+      }
+    }, 100);
+
+    // 超时清理（10 秒后放弃）
+    const timeoutId = setTimeout(() => {
+      clearInterval(checkInterval);
+      setLocationError("地图加载超时");
+    }, 10000);
+
+    return () => {
+      clearInterval(checkInterval);
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
   // 初始化地图
   useEffect(() => {
-    if (!mapRef.current || !window.AMap) return;
+    if (!mapRef.current || !amapLoaded) return;
 
     try {
       const map = new window.AMap.Map(mapRef.current, {
@@ -57,7 +88,7 @@ function AMapComponent({
         mapInstanceRef.current = null;
       }
     };
-  }, []);
+  }, [amapLoaded]);
 
   // 获取用户当前位置
   useEffect(() => {
