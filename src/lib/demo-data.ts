@@ -277,7 +277,7 @@ declare global {
 export function getDemoState() {
   if (!globalThis.__travelBotDemoState__) {
     globalThis.__travelBotDemoState__ = {
-      trips: [clone(seedTrip)],
+      trips: [],
       magicLinks: [],
     };
   } else {
