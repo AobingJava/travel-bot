@@ -12,26 +12,30 @@ const items = [
 
 export function MobileNav({ tripId }: { tripId: string }) {
   const searchParams = useSearchParams();
-  const activeView = searchParams.get("view") ?? "meeting";
+  const activeView = searchParams.get("view") ?? "overview";
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/60">
-      <div className="mx-auto flex max-w-[430px] gap-1 px-3 pt-2 pb-[calc(0.5rem+var(--safe-bottom))]">
-        {items.map((item) => {
+      <div className="mx-auto flex max-w-[430px] gap-1.5 px-3 pt-2 pb-[calc(0.5rem+var(--safe-bottom))]">
+        {items.map((item, index) => {
           const isActive = item.key === activeView;
 
           return (
-            <Link
-              key={item.key}
-              href={`/trips/${tripId}?view=${item.key}`}
-              className={`flex-1 rounded-xl py-2 text-center text-[13px] font-semibold transition active:scale-[0.96] ${
-                isActive
-                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
-                  : "text-slate-400 hover:text-slate-600"
-              }`}
-            >
-              {item.label}
-            </Link>
+            <div key={item.key} className="flex-1">
+              <Link
+                href={`/trips/${tripId}?view=${item.key}`}
+                className={`block rounded-xl py-2 text-center text-[13px] font-semibold transition active:scale-[0.96] ${
+                  isActive
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                    : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                {item.label}
+              </Link>
+              {index < items.length - 1 && (
+                <div className="absolute right-0 top-1/2 h-4 w-px -translate-y-1/2 bg-slate-200/60" />
+              )}
+            </div>
           );
         })}
       </div>

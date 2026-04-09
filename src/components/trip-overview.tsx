@@ -1,22 +1,12 @@
 import type { TripDocument } from "@/lib/types";
-import { formatDateRange, getThemeLabel, getTripStageLabel } from "@/lib/utils";
+import { getThemeLabel } from "@/lib/utils";
+import { InviteMemberForm } from "@/components/invite-member-form";
 
-export function TripOverview({ trip }: { trip: TripDocument }) {
+export function TripOverview({ trip, canInvite }: { trip: TripDocument; canInvite: boolean }) {
   return (
     <section className="space-y-3">
-      <div className="overflow-hidden rounded-2xl bg-slate-950 p-5 text-white shadow-[0_12px_40px_rgba(15,23,42,0.18)]">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Wander</p>
-        <div className="mt-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
-              {getTripStageLabel(trip.stage)}
-            </span>
-            <span className="text-[12px] text-white/70">{trip.travelerCount} 人同行</span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">{trip.name}</h1>
-          <p className="text-[13px] text-white/75">{formatDateRange(trip.startDate, trip.endDate)}</p>
-        </div>
-      </div>
+      {/* 邀请旅伴卡片 - 置顶 */}
+      {canInvite && <InviteMemberForm tripId={trip.id} />}
 
       <div className="grid gap-2 sm:grid-cols-2">
         <article className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
@@ -32,14 +22,25 @@ export function TripOverview({ trip }: { trip: TripDocument }) {
             ))}
           </div>
         </article>
-
-        <article className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
-          <p className="text-xs font-medium text-slate-400">AI 调整原则</p>
-          <p className="mt-2.5 text-[13px] leading-6 text-slate-600">
-            优先把天气窗口敏感的任务提到前面，同时保留一条室内备选，保证多人协作下也能稳定推进。
-          </p>
-        </article>
       </div>
+
+      {/* 装备清单 */}
+      {trip.packingList && trip.packingList.length > 0 && (
+        <article className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+          <p className="text-xs font-medium text-slate-400">装备清单</p>
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
+            {trip.packingList.map((item, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2"
+              >
+                <div className="h-4 w-4 rounded-full border-2 border-slate-300" />
+                <span className="text-[13px] font-medium text-slate-700">{item}</span>
+              </div>
+            ))}
+          </div>
+        </article>
+      )}
 
       <div className="space-y-2">
         {trip.dailySuggestions.map((suggestion) => (

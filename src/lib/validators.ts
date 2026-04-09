@@ -11,14 +11,10 @@ const themeEnum = z.enum([
 
 export const createTripSchema = z
   .object({
+    name: z.string().trim().max(60, "行程名称过长").optional().or(z.literal("")),
     destination: z.string().trim().min(2, "请输入目的地").max(80, "目的地过长"),
     startDate: z.string().date("请输入出发日期"),
     endDate: z.string().date("请输入返回日期"),
-    travelerCount: z.coerce
-      .number()
-      .int("人数必须为整数")
-      .min(1, "至少 1 人")
-      .max(20, "人数最多 20 人"),
     themes: z.array(themeEnum).min(1, "至少选择一个旅行主题"),
     customTags: z.array(z.string()).optional(),
   })

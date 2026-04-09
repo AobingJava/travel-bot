@@ -24,7 +24,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
   }
 
   const viewParam = resolvedSearchParams.view;
-  const view = typeof viewParam === "string" ? viewParam : "meeting";
+  const view = typeof viewParam === "string" ? viewParam : "overview";
   const canInvite =
     (currentUser?.email?.toLowerCase() ?? "aihe@example.com") ===
     trip.ownerEmail.toLowerCase();
@@ -33,12 +33,12 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
     <main className="mx-auto flex w-full max-w-[430px] flex-col gap-4 px-4 pt-6 pb-28 sm:pt-10">
       <TripHeader trip={trip} currentUser={currentUser} />
 
-      {view === "overview" ? <TripOverview trip={trip} /> : null}
+      {view === "overview" ? <TripOverview trip={trip} canInvite={canInvite} /> : null}
       {view === "tasks" ? (
         <TaskBoard tripId={trip.id} tasks={trip.tasks} banner={trip.banner} />
       ) : null}
       {view === "companions" ? (
-        <TripMembers trip={trip} canInvite={canInvite} />
+        <TripMembers trip={trip} />
       ) : null}
       {view === "meeting" ? <MemoryView trip={trip} /> : null}
 

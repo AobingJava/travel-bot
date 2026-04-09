@@ -102,6 +102,105 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
         </div>
       )}
 
+      {/* 语音反馈区域 - 置顶 */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-50 to-rose-50 p-8">
+        <div className="relative z-10 space-y-4">
+          <h3 className="text-3xl font-bold leading-tight text-slate-800">
+            这次玩得开心吗？<br />
+            <span className="text-orange-600">快来吐槽。</span>
+          </h3>
+          <p className="text-base text-slate-600">
+            你的活力副驾驶正在倾听。别有任何顾虑。
+          </p>
+        </div>
+
+        {/* 语音输入交互 */}
+        <div className="mt-8 flex flex-col items-center gap-4">
+          <div className="relative">
+            {isRecording && (
+              <div className="absolute inset-0 animate-ping rounded-full bg-orange-300/40" />
+            )}
+            <button
+              onClick={handleRecordVoice}
+              className={`relative h-20 w-20 rounded-full bg-white shadow-2xl transition ${
+                isRecording ? "ring-4 ring-orange-200" : ""
+              }`}
+            >
+              <div className="flex h-full w-full items-center justify-center">
+                <svg
+                  className={`h-8 w-8 ${isRecording ? "text-orange-500" : "text-slate-400"}`}
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                </svg>
+              </div>
+            </button>
+          </div>
+
+          {isRecording && (
+            <>
+              <div className="flex items-end gap-1 h-8">
+                {[4, 8, 6, 10, 4].map((height, i) => (
+                  <div
+                    key={i}
+                    className="w-1.5 rounded-full bg-orange-500"
+                    style={{ height: `${height * 2}px`, animation: `pulse 0.5s ease-in-out infinite ${i * 0.1}s` }}
+                  />
+                ))}
+              </div>
+              <p className="text-xs font-bold uppercase tracking-widest text-orange-600 italic">
+                伙伴正在倾听...
+              </p>
+            </>
+          )}
+
+          {!isRecording && (
+            <p className="text-xs text-slate-500">点击开始录音</p>
+          )}
+        </div>
+      </div>
+
+      {/* 统计摘要卡片 */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* 总行程 */}
+        <div className="rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">总行程</p>
+          <div className="mt-2 flex items-end justify-between">
+            <p className="text-3xl font-bold text-indigo-900">
+              {Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} 天
+            </p>
+            <svg className="w-8 h-8 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* 减少碳排放 */}
+        <div className="rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">减少碳排放</p>
+          <div className="mt-2 flex items-end justify-between">
+            <p className="text-3xl font-bold text-amber-900">12.4 kg</p>
+            <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" />
+            </svg>
+          </div>
+        </div>
+
+        {/* 打卡新地点 */}
+        <div className="col-span-2 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">打卡新地点</p>
+          <div className="mt-2 flex items-end justify-between">
+            <p className="text-3xl font-bold text-emerald-900">{trip.tasks.filter((t) => t.phase === "during").length} 个</p>
+            <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
       {/* 已生成的卡片列表 */}
       {generatedCards.length > 0 && (
         <div className="space-y-4">
@@ -165,66 +264,6 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
             <div className="text-center py-8 text-slate-500 text-sm">
               暂无景点数据
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* 语音反馈 */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-50 to-rose-50 p-8">
-        <div className="relative z-10 space-y-4">
-          <h3 className="text-3xl font-bold leading-tight text-slate-800">
-            这次玩得开心吗？<br />
-            <span className="text-orange-600">快来吐槽。</span>
-          </h3>
-          <p className="text-base text-slate-600">
-            你的活力副驾驶正在倾听。别有任何顾虑。
-          </p>
-        </div>
-
-        {/* 语音输入交互 */}
-        <div className="mt-8 flex flex-col items-center gap-4">
-          <div className="relative">
-            {isRecording && (
-              <div className="absolute inset-0 animate-ping rounded-full bg-orange-300/40" />
-            )}
-            <button
-              onClick={handleRecordVoice}
-              className={`relative h-20 w-20 rounded-full bg-white shadow-2xl transition ${
-                isRecording ? "ring-4 ring-orange-200" : ""
-              }`}
-            >
-              <div className="flex h-full w-full items-center justify-center">
-                <svg
-                  className={`h-8 w-8 ${isRecording ? "text-orange-500" : "text-slate-400"}`}
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
-                </svg>
-              </div>
-            </button>
-          </div>
-
-          {isRecording && (
-            <>
-              <div className="flex items-end gap-1 h-8">
-                {[4, 8, 6, 10, 4].map((height, i) => (
-                  <div
-                    key={i}
-                    className="w-1.5 rounded-full bg-orange-500"
-                    style={{ height: `${height * 2}px`, animation: `pulse 0.5s ease-in-out infinite ${i * 0.1}s` }}
-                  />
-                ))}
-              </div>
-              <p className="text-xs font-bold uppercase tracking-widest text-orange-600 italic">
-                伙伴正在倾听...
-              </p>
-            </>
-          )}
-
-          {!isRecording && (
-            <p className="text-xs text-slate-500">点击开始录音</p>
           )}
         </div>
       </div>

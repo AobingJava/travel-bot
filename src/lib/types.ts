@@ -112,6 +112,7 @@ export interface TripDocument {
   travelerCount: number;
   themes: ThemeKey[];
   customTags?: string[];
+  packingList?: string[];
   ownerEmail: string;
   ownerName: string;
   stage: TripStage;
@@ -134,12 +135,14 @@ export interface AppBootstrap {
 }
 
 export interface CreateTripInput {
+  name?: string;
   destination: string;
   startDate: string;
   endDate: string;
-  travelerCount: number;
+  travelerCount?: number;
   themes: ThemeKey[];
   customTags?: string[];
+  generatePackingList?: boolean;
 }
 
 export interface InviteMemberInput {
@@ -181,4 +184,5 @@ export interface GeneratedTripPlan {
   tasks: TripTask[];
   dailySuggestions: TripDailySuggestion[];
   banner: TripBanner;
+  packingList?: string[];
 }

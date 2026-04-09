@@ -79,6 +79,7 @@ const planSchema = z.object({
   tasks: z.array(taskSchema),
   dailySuggestions: z.array(dailySuggestionSchema),
   banner: bannerSchema,
+  packingList: z.array(z.string()).optional(),
 });
 
 const replanSchema = z.object({
@@ -127,13 +128,14 @@ export async function generateTripDocument(
   return {
     id: tripId,
     slug: slugify(`${input.destination}-${tripId.slice(-6)}`),
-    name: plan.name,
+    name: input.name || plan.name,
     destination: input.destination,
     startDate: input.startDate,
     endDate: input.endDate,
-    travelerCount: input.travelerCount,
+    travelerCount: input.travelerCount ?? 1,
     themes: input.themes,
     customTags: input.customTags,
+    packingList: plan.packingList,
     ownerEmail: owner.email,
     ownerName: owner.name,
     stage: plan.stage,
@@ -290,11 +292,11 @@ async function generateWithModel(input: CreateTripInput): Promise<GeneratedTripP
       {
         role: "system",
         content:
-          "你是一个中文旅行规划助手。只输出合法 JSON，不要附加解释。请返回 3 个阶段的 TODO、每日建议和一个顶部 banner。任务数控制在 8-10 个，移动端易读。旅途中打卡任务（phase=during）至少给出 3 个，并尽量补齐 locationName、scheduledTime（HH:mm）、durationMinutes、travelMode、travelMinutes、routeHint，以及 lat/lng 坐标（十进制度数）。路线建议要像真实行程，时间连续、通勤合理、方便在移动端显示。",
+          "你是一个中文旅行规划助手。只输出合法 JSON，不要附加解释。请返回一个有吸引力的行程名称、3 个阶段的 TODO、每日建议、一个顶部 banner 和装备清单。行程名称应该结合目的地和主题特色，简洁有力（8-20 字）。任务数控制在 8-10 个，移动端易读。旅途中打卡任务（phase=during）至少给出 3 个，并尽量补齐 locationName、scheduledTime（HH:mm）、durationMinutes、travelMode、travelMinutes、routeHint，以及 lat/lng 坐标（十进制度数）。路线建议要像真实行程，时间连续、通勤合理、方便在移动端显示。装备清单应该是 8-15 个旅行必备物品的字符串数组。",
       },
       {
         role: "user",
-        content: `请为这次旅行生成计划：目的地 ${input.destination}，日期 ${input.startDate} 到 ${input.endDate}，人数 ${input.travelerCount}，主题 ${themeList}。`,
+        content: `请为这次旅行生成计划：目的地 ${input.destination}，日期 ${input.startDate} 到 ${input.endDate}，人数 ${input.travelerCount ?? 1}，主题 ${themeList}。请同时生成一个适合目的地和活动类型的装备清单。`,
       },
     ],
   });
@@ -513,6 +515,7 @@ function finalizeGeneratedPlan(
       ...plan.banner,
       updatedAt: plan.banner.updatedAt ?? new Date().toISOString(),
     },
+    packingList: plan.packingList,
   };
 }
 
@@ -880,6 +883,7 @@ function normalizeGeneratedPlan(
       ? plan.dailySuggestions
       : fallback.dailySuggestions,
     banner: plan.banner.title ? plan.banner : fallback.banner,
+    packingList: plan.packingList && plan.packingList.length > 0 ? plan.packingList : fallback.packingList,
   };
 }
 
@@ -1085,7 +1089,47 @@ function fallbackPlan(input: CreateTripInput): GeneratedTripPlan {
       tone: "neutral",
       updatedAt: new Date().toISOString(),
     },
+    packingList: generateFallbackPackingList(input),
   };
+}
+
+function generateFallbackPackingList(input: CreateTripInput): string[] {
+  const baseItems = ["护照/身份证", "钱包和现金", "手机和充电器", "换洗衣物", "个人洗漱用品", "常用药品"];
+
+  // 根据目的地类型添加特定物品
+  const destination = input.destination.toLowerCase();
+  const specificItems: string[] = [];
+
+  if (destination.includes("海岛") || destination.includes("沙滩") || destination.includes("巴厘岛") || destination.includes("马尔代夫")) {
+    specificItems.push("防晒霜", "泳衣泳镜", "沙滩拖鞋");
+  } else if (destination.includes("日本") || destination.includes("韩国") || destination.includes("城市")) {
+    specificItems.push("交通卡", "便携 WiFi", "购物袋");
+  } else if (destination.includes("瑞士") || destination.includes("阿尔卑斯") || destination.includes("雪山")) {
+    specificItems.push("保暖衣物", "防滑鞋", "墨镜");
+  } else if (destination.includes("户外") || destination.includes("登山") || destination.includes("徒步")) {
+    specificItems.push("登山鞋", "背包", "水壶");
+  }
+
+  // 根据旅行主题添加
+  if (input.themes.includes("nature")) {
+    specificItems.push("驱蚊液", "轻便户外鞋");
+  }
+  if (input.themes.includes("shopping")) {
+    specificItems.push("折叠购物袋", "信用卡");
+  }
+
+  // 根据旅行时长调整
+  const days = Math.max(1, Math.ceil((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / (1000 * 60 * 60 * 24)));
+  if (days > 7) {
+    specificItems.push("足够换洗衣物", "折叠洗衣袋");
+  }
+
+  // 根据人数
+  if ((input.travelerCount ?? 1) > 3) {
+    specificItems.push("团体标识物", "应急联系人清单");
+  }
+
+  return [...baseItems, ...specificItems].slice(0, 12);
 }
 
 function enumerateDates(startDate: string, endDate: string) {

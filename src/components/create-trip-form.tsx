@@ -9,7 +9,6 @@ type FormState = {
   destination: string;
   startDate: string;
   endDate: string;
-  travelerCount: string;
   themes: string[];
   customTags: string[];
   showCustomTagInput: boolean;
@@ -20,7 +19,6 @@ const defaultState: FormState = {
   destination: "",
   startDate: "2026-05-10",
   endDate: "2026-05-17",
-  travelerCount: "4",
   themes: [],
   customTags: [],
   showCustomTagInput: false,
@@ -109,7 +107,8 @@ function getDestinationTags(destination: string): string[] {
 
   for (const { keywords, tags } of destinationTags) {
     if (keywords.some((keyword) => lowerDestination.includes(keyword.toLowerCase()))) {
-      return tags;
+      // 过滤掉空标签，然后截取最多 8 个
+      return tags.filter((tag) => tag && tag.trim()).slice(0, 8);
     }
   }
 
@@ -143,22 +142,28 @@ export function CreateTripForm() {
       const recommended = getDestinationTags(form.destination);
       setIsAnalyzing(false);
 
-      // 流式输出效果：逐个显示推荐的主题
-      let currentIndex = 0;
-      setStreamedThemes([]);
-      setShowThemes(true);
+      // 流式输出效果：逐个显示推荐的主题，每个间隔 50ms
+      if (recommended.length > 0) {
+        setShowThemes(true);
+        setStreamedThemes([]);
 
-      const streamInterval = setInterval(() => {
-        if (currentIndex < recommended.length) {
-          setStreamedThemes((prev) => [...prev, recommended[currentIndex]]);
-          currentIndex++;
-        } else {
-          clearInterval(streamInterval);
-        }
-      }, 100); // 每个 tag 间隔 100ms 出现
+        // 使用 setTimeout 逐个添加标签，避免 setInterval 的状态问题
+        const timeouts: NodeJS.Timeout[] = [];
+        recommended.forEach((tag, index) => {
+          const timeout = setTimeout(() => {
+            setStreamedThemes((prev) => [...prev, tag]);
+          }, index * 50);
+          timeouts.push(timeout);
+        });
 
-      return () => clearInterval(streamInterval);
-    }, 500); // 500ms 防抖
+        return () => {
+          timeouts.forEach(clearTimeout);
+        };
+      } else {
+        setShowThemes(false);
+        setStreamedThemes([]);
+      }
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [form.destination]);
@@ -217,22 +222,28 @@ export function CreateTripForm() {
   function handleSubmit(formData: FormData) {
     setError(null);
 
-    if (showThemes && form.themes.length === 0 && form.customTags.length === 0) {
+    // 检查是否至少选择了一个主题或标签
+    const shouldValidate = showThemes && streamedThemes.length > 0;
+
+    if (shouldValidate && form.themes.length === 0 && form.customTags.length === 0) {
       setError("至少选择一个旅行主题或添加一个自定义标签");
       return;
     }
 
     startTransition(async () => {
+      const destination = formData.get("destination") as string;
+      const startDate = formData.get("startDate") as string;
+      const endDate = formData.get("endDate") as string;
+
       const response = await fetch("/api/trips", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          destination: formData.get("destination"),
-          startDate: formData.get("startDate"),
-          endDate: formData.get("endDate"),
-          travelerCount: formData.get("travelerCount"),
+          destination,
+          startDate,
+          endDate,
           themes: form.themes,
           customTags: form.customTags,
         }),
@@ -298,21 +309,48 @@ export function CreateTripForm() {
             )}
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {streamedThemes.filter((tag) => tag.trim()).map((tag, index) => (
-              <span
-                key={tag}
-                className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-[13px] font-medium text-amber-700 animate-in fade-in zoom-in duration-300"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                {tag}
-              </span>
-            ))}
+            {streamedThemes.filter((tag) => tag && tag.trim()).map((tag, index) => {
+              // 查找对应的 theme key
+              const matchingTheme = tripThemes.find((theme) => theme.label === tag);
+              const isSelected = matchingTheme ? form.themes.includes(matchingTheme.key) : false;
+              const isCustomTagSelected = !matchingTheme && form.customTags.includes(tag);
+
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => {
+                    if (matchingTheme) {
+                      toggleTheme(matchingTheme.key);
+                    } else {
+                      // 添加到自定义标签
+                      if (form.customTags.includes(tag)) {
+                        removeCustomTag(tag);
+                      } else {
+                        setForm((current) => ({
+                          ...current,
+                          customTags: [...current.customTags, tag],
+                        }));
+                      }
+                    }
+                  }}
+                  className={`rounded-full border px-3 py-1.5 text-[13px] font-medium transition-all active:scale-[0.96] ${
+                    isSelected || isCustomTagSelected
+                      ? "border-transparent bg-slate-950 text-white shadow-md shadow-slate-950/12"
+                      : "border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400"
+                  }`}
+                  style={{ animation: 'fadeIn 0.3s ease-in-out both', animationDelay: `${index * 50}ms` }}
+                >
+                  {tag}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* 旅行主题区域 - 输入目的地后才显示 */}
-      {showThemes && (
+      {showThemes && streamedThemes.length > 0 && (
         <div className="space-y-1.5">
           <span className="text-[13px] font-medium text-slate-600">旅行主题</span>
           <div className="flex flex-wrap gap-1.5">

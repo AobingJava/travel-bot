@@ -34,22 +34,6 @@ export default async function HomePage() {
 
       {/* Hero card */}
       <section className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/80 p-4 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
-        <div className="relative overflow-hidden rounded-[24px] bg-slate-950 px-5 py-6 text-white">
-          <div className="absolute -left-10 top-4 h-28 w-28 rounded-full bg-slate-700/20" />
-          <div className="absolute -right-8 -top-4 h-40 w-40 rounded-full bg-teal-200/12" />
-          <div className="relative">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/70">
-              Wander
-            </p>
-            <h1 className="mt-3 max-w-[240px] text-[28px] font-bold leading-tight tracking-tight">
-              计划你的下一次旅行
-            </h1>
-            <p className="mt-2.5 max-w-[260px] text-[13px] leading-6 text-white/75">
-              AI 帮你搞定所有细节，先把行前准备、旅途打卡和旅后总结拆清楚。
-            </p>
-          </div>
-        </div>
-
         <div className="mt-4">
           <CreateTripForm />
         </div>
