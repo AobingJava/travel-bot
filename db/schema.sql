@@ -32,3 +32,17 @@ CREATE TABLE IF NOT EXISTS magic_links (
   consumed_at TEXT,
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS member_locations (
+  id TEXT PRIMARY KEY,
+  trip_id TEXT NOT NULL,
+  member_email TEXT NOT NULL,
+  lat REAL NOT NULL,
+  lng REAL NOT NULL,
+  accuracy REAL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (trip_id) REFERENCES trip_documents(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_member_locations_trip
+  ON member_locations(trip_id, member_email);
