@@ -128,52 +128,6 @@ export default async function HomePage() {
           </section>
         )}
 
-        <section className="mb-8 mt-16">
-          <h2 className="mb-8 font-headline text-3xl font-bold tracking-tight text-on-surface">精选目的地</h2>
-          <div className="grid h-[500px] grid-cols-2 grid-rows-2 gap-4 md:grid-cols-4">
-            <div className="group relative col-span-2 row-span-2 overflow-hidden rounded-xl">
-              <img
-                alt="瑞士山间湖泊"
-                className="h-full w-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhbcttFm8Fs7SjYndfXCY-TN48PZeFpp8T6tXIGzuwt6qWInlHuCJlorIuy7fGz30jAA0gXpJchOG6XsNjnkBblD97ooIN72yn9-JuCd5COVZvp_j70BTYJ168SQEIIw9AK5s3NgZDGFlGNuKZnEWckxLHTAvjYSzC_FrIaeR-GiDHH8H5i8zFpiunWgCYTmq6B19JOryuppypl3hHBfwBeNB_D038cZE8OfAggfFN7BaYUO4pAYiEQYr6j2I6teLY4MmXeInFvYQ"
-              />
-              <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 to-transparent p-6">
-                <p className="mb-1 text-xs font-bold uppercase tracking-widest text-white/80">冒险</p>
-                <h4 className="font-headline text-2xl font-bold text-white">瑞士阿尔卑斯</h4>
-              </div>
-            </div>
-            <div className="group relative col-span-1 row-span-1 overflow-hidden rounded-xl">
-              <img
-                alt="马尔代夫海岛"
-                className="h-full w-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmn9wHxcKKCUANLW6milGx4ZvZ5pxz21lm9Xo535WJQGUwZhbdsFLOMzHatcO9QkmBB5Pf9gt7QSKiOfqexqlUPiWAxVyCuVsGXiEnSIMCLlE7P-J4QsubX1DAuBRrbDXIW-6DBLOLx38AYofEgYWAnmTpb4Lw8nOLES7-WJZg3lAjvy1TCOLM0xNv7Y_kN0CI0u--1E9t0vUctwtDeFtNME6kMAIaFNq7PwNTK7ySsnU5VNh4S-Pg5AL1kKChzYu6BvybocJRxAU"
-              />
-              <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/40 to-transparent p-4">
-                <h4 className="font-headline text-lg font-bold text-white">马尔代夫</h4>
-              </div>
-            </div>
-            <div className="group relative col-span-1 row-span-1 overflow-hidden rounded-xl">
-              <img
-                alt="京都红叶寺庙"
-                className="h-full w-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtz_rQgbbiTJx41snyxcM0ZFMdJrWk2YEuT81NJIQcoqSWgAHyKc6D9PY7USTla0pqqpW31qZ6hBw_ttxgE9hJixN5bORIifa4QFo4UUKO6YN7QqNr7sYKdb3KWEm-FsyX5AFos-fzijQ79Q8TUiY2YcHfjPQZlC-dQEHnKlNBi9Lryycz9Uq0xC2KHOyCIbFs8xxTiDAmIuV8h1KO4u3pPjEq5GOgyD6ji6P_zHfZ_1_s-ZF8XdfGcJPZO0wDdemBX7Wy4rY_WR0"
-              />
-              <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/40 to-transparent p-4">
-                <h4 className="font-headline text-lg font-bold text-white">京都</h4>
-              </div>
-            </div>
-            <div className="group relative col-span-2 row-span-1 overflow-hidden rounded-xl">
-              <img
-                alt="威尼斯水城黄昏"
-                className="h-full w-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCt8N3hanufWwcEhdSGhXfxVpCUO-ksKqKLE46L6yzLJAX0ttj8LiYOAMRbbN1vw1VVG18IZuq0v189BxWnki0ZWlvhVjW1hDIalUvb4Fhnq-f4iglgv01nQiQ3Wb7QxabpgbriPAlrjZZz_2Zb1hPYDtsVl0Y7B6HwMfqSkZQMi_Swd0hqpAWruxVmtSRSrLMiEWpJ2cfa8JEAwxPIndINL2wYM35uS8DsFe--ngpjKe0eXaCyRGkBFM3lo-xPkeWQWY5NQw63mV0"
-              />
-              <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/40 to-transparent p-6">
-                <h4 className="font-headline text-xl font-bold text-white">威尼斯水巷</h4>
-              </div>
-            </div>
-          </div>
-        </section>
       </main>
 
       <HomeMobileNav />
@@ -216,7 +170,7 @@ function TripCard({ trip }: { readonly trip: TripDocument }) {
       <div className="flex flex-col justify-between p-6 md:w-3/5">
         <div>
           <h3 className="mb-2 font-headline text-xl font-bold leading-tight text-on-surface">
-            {trip.destination} {trip.themes[0] ? `${trip.themes[0]}之旅` : "行程计划"}
+            {trip.name?.trim() ? trip.name : trip.destination}
           </h3>
           <div className="flex items-center gap-4 text-sm text-on-surface-variant">
             <span className="flex items-center gap-1">
