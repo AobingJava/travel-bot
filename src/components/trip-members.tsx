@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { TripDocument, TripMember, MemberLocationStatus, SessionUser } from "@/lib/types";
-import Script from "next/script";
+import { loadAmap } from "@/lib/amap-loader";
 
 const statusLabel = {
   confirmed: "已确认",
@@ -37,33 +37,25 @@ function AMapComponent({
   const [locationError, setLocationError] = useState<string | null>(null);
   const [amapLoaded, setAmapLoaded] = useState(false);
 
-  // 等待高德地图加载完成
+  // 加载高德地图
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    let destroyed = false;
 
-    // 检查是否已经加载
-    if (window.AMap) {
-      setAmapLoaded(true);
-      return;
-    }
-
-    // 轮询等待地图加载
-    const checkInterval = setInterval(() => {
-      if (window.AMap) {
-        clearInterval(checkInterval);
-        setAmapLoaded(true);
-      }
-    }, 100);
-
-    // 超时清理（10 秒后放弃）
-    const timeoutId = setTimeout(() => {
-      clearInterval(checkInterval);
-      setLocationError("地图加载超时");
-    }, 10000);
+    loadAmap()
+      .then(() => {
+        if (!destroyed) {
+          setAmapLoaded(true);
+        }
+      })
+      .catch((err: Error) => {
+        if (!destroyed) {
+          console.error("加载高德地图失败:", err);
+          setLocationError(err.message || "地图加载失败");
+        }
+      });
 
     return () => {
-      clearInterval(checkInterval);
-      clearTimeout(timeoutId);
+      destroyed = true;
     };
   }, []);
 
@@ -403,18 +395,6 @@ export function TripMembers({
 
   return (
     <>
-      {/* 高德地图 JS API - 安全密钥配置 */}
-      <Script
-        id="amap-security"
-        strategy="lazyOnload"
-      >
-        {`window._AMapSecurityConfig = { securityJsCode: '${process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE || ''}' };`}
-      </Script>
-      <Script
-        src={`https://webapi.amap.com/maps?v=2.0&key=${process.env.NEXT_PUBLIC_AMAP_KEY || "your-amap-key"}`}
-        strategy="lazyOnload"
-      />
-
       <section className="space-y-3 pb-20">
         {/* 高德地图组件 */}
         {isLoading ? (
