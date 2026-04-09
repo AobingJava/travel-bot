@@ -313,17 +313,18 @@ function createEvent({
 
 async function generateWithModel(input: CreateTripInput): Promise<GeneratedTripPlan> {
   const themeList = input.themes.map((theme) => getThemeLabel(theme)).join("、");
+  const tripDays = Math.ceil((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
   const raw = await requestCompletionText({
     messages: [
       {
         role: "system",
         content:
-          "你是一个专业的中文旅行规划助手。请只输出合法 JSON，不要任何解释或额外文字。\n\n请严格按照以下 JSON 结构输出：\n{\n  \"name\": \"行程名称（字符串）\",\n  \"stage\": \"draft|planning|ongoing|completed\",\n  \"phases\": {\n    \"pre\": [{\"title\": \"任务标题\", \"notes\": \"备注\", \"label\": \"suggestion|transport|lodging|food\"}],\n    \"during\": [{\"title\": \"任务标题\", \"notes\": \"备注\", \"label\": \"suggestion|food|backup\", \"locationName\": \"地点名\", \"scheduledTime\": \"HH:mm\", \"durationMinutes\": 数字，\"travelMode\": \"walk|subway|train|bus|taxi\", \"travelMinutes\": 数字，\"routeHint\": \"路线提示\", \"lat\": 数字，\"lng\": 数字}],\n    \"post\": [{\"title\": \"任务标题\", \"notes\": \"备注\", \"label\": \"summary\"}]\n  },\n  \"dailySuggestions\": [{\"dayIndex\": 数字，\"label\": \"日期\", \"title\": \"标题\", \"summary\": \"摘要\"}],\n  \"banner\": {\"title\": \"标题\", \"body\": \"正文\", \"tone\": \"neutral|weather|timing\"},\n  \"packingList\": [{\"name\": \"物品名\", \"category\": \"core|clothing|electronics|toiletries|documents|weather\", \"weatherDependent\": 布尔}]\n}",
+          "你是一个专业的中文旅行规划助手。请只输出合法 JSON，不要任何解释或额外文字。\n\n请严格按照以下 JSON 结构输出：\n{\n  \"name\": \"行程名称（字符串）\",\n  \"stage\": \"draft|planning|ongoing|completed\",\n  \"phases\": {\n    \"pre\": [{\"title\": \"具体任务标题\", \"notes\": \"详细备注\", \"label\": \"suggestion|transport|lodging|food\"}],\n    \"during\": [{\"title\": \"具体任务标题\", \"notes\": \"详细备注\", \"label\": \"suggestion|food|backup\", \"locationName\": \"地点名\", \"scheduledTime\": \"HH:mm\", \"durationMinutes\": 数字，\"travelMode\": \"walk|subway|train|bus|taxi\", \"travelMinutes\": 数字，\"routeHint\": \"路线提示\", \"lat\": 数字，\"lng\": 数字}],\n    \"post\": [{\"title\": \"具体任务标题\", \"notes\": \"详细备注\", \"label\": \"summary\"}]\n  },\n  \"dailySuggestions\": [{\"dayIndex\": 数字，\"label\": \"日期\", \"title\": \"标题\", \"summary\": \"摘要\"}],\n  \"banner\": {\"title\": \"标题\", \"body\": \"正文\", \"tone\": \"neutral|weather|timing\"},\n  \"packingList\": [{\"name\": \"物品名\", \"category\": \"core|clothing|electronics|toiletries|documents|weather\", \"weatherDependent\": 布尔}]\n}",
       },
       {
         role: "user",
-        content: `请为这次旅行生成完整计划：\n- 目的地：${input.destination}\n- 日期：${input.startDate} 到 ${input.endDate}\n- 人数：${input.travelerCount ?? 1}人\n- 主题：${themeList}\n\n要求：\n1. phases.pre：3-4 个行前任务（证件、机票酒店、物品准备）\n2. phases.during：3-4 个旅途任务，必须包含真实景点名称（locationName）和坐标（lat/lng）\n3. phases.post：1-2 个旅后任务\n4. 所有任务必须有 title 字段`,
+        content: `请为这次旅行生成完整计划：\n- 目的地：${input.destination}\n- 日期：${input.startDate} 到 ${input.endDate}（共${tripDays}天）\n- 人数：${input.travelerCount ?? 1}人\n- 主题：${themeList}\n\n【重要要求 - 必须遵守】：\n\n1. **phases.pre（行前任务 8-12 个）**：必须包含以下具体任务\n   - 证件类：办理护照/港澳台通行证（如需要）、准备身份证原件\n   - 交通住宿：预订往返机票/车票、预订酒店/民宿\n   - 财务准备：兑换当地货币（如出境）、准备信用卡和现金\n   - 通讯网络：购买当地 SIM 卡/eSIM、开通国际漫游\n   - 旅行保险：购买旅行意外险\n   - 物品采购：根据${tripDays}天行程准备衣物、购买一次性内衣裤（${tripDays * 2}件）、准备洗漱用品分装瓶\n   - 电子产品：准备充电器、充电宝、转换插头（如出境）\n   - 药品准备：感冒药、肠胃药、创可贴、驱蚊液\n   - 景点预约：提前预约热门景点门票\n   - 每个任务必须具体可执行，标题清晰描述要做什么\n\n2. **phases.during（旅途任务 3-4 个）**：\n   - 必须包含真实景点名称（locationName）和坐标（lat/lng）\n   - 每天安排合理的游览时间\n   - 包含当地特色美食体验\n\n3. **phases.post（旅后任务 1-2 个）**：\n   - 照片整理、费用复盘、评价分享\n\n4. **packingList（装备清单 15-20 个）**：根据${tripDays}天行程准备\n   - documents 证件类：身份证、护照（如需要）、银行卡、现金\n   - clothing 衣物类：换洗衣物（${tripDays}套）、一次性内衣裤（${tripDays * 2}件）、舒适鞋子、睡衣\n   - electronics 电子类：手机充电器、充电宝、耳机、转换插头\n   - toiletries 洗漱类：牙刷、牙膏、洗发水、沐浴露、护肤品、防晒霜\n   - core 核心类：雨伞、纸巾、水杯、背包\n   - weather 天气类：根据目的地天气准备雨具/防晒/保暖用品\n`,
       },
     ],
     temperature: 0.7,
