@@ -44,7 +44,7 @@ const items = [
 
 export function MobileNav({ tripId }: { tripId: string }) {
   const searchParams = useSearchParams();
-  const activeView = searchParams.get("view") ?? "overview";
+  const activeView = searchParams.get("view") ?? "tasks";
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/60">
