@@ -53,7 +53,7 @@ export function InviteMemberForm({ trip }: { trip: TripDocument }) {
   const remainingCount = trip.members.length - 4;
 
   return (
-    <div className="relative rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
       {/* 行程动态内容 */}
       <div className="flex flex-col gap-4">
         <div>
@@ -82,6 +82,19 @@ export function InviteMemberForm({ trip }: { trip: TripDocument }) {
             </div>
           )}
         </div>
+        {/* 邀请好友按钮 - 放在进度条上方，靠右对齐 */}
+        <div className="flex justify-end pt-1">
+          <button
+            type="button"
+            onClick={handleShare}
+            className="bg-gradient-to-br from-orange-500 to-orange-600 text-white px-5 py-2.5 rounded-full shadow-lg flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7h4v3H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm-9 4c0-2.66 5.33-4 8-4s8 1.34 8 4v2H6v-2z"/>
+            </svg>
+            <span className="text-sm font-bold">邀请好友</span>
+          </button>
+        </div>
         {/* 进度条 */}
         <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
           <div
@@ -91,21 +104,9 @@ export function InviteMemberForm({ trip }: { trip: TripDocument }) {
         </div>
       </div>
 
-      {/* 邀请好友浮动按钮 */}
-      <button
-        type="button"
-        onClick={handleShare}
-        className="absolute -bottom-3 -right-3 bg-gradient-to-br from-orange-500 to-orange-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
-      >
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7h4v3H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm-9 4c0-2.66 5.33-4 8-4s8 1.34 8 4v2H6v-2z"/>
-        </svg>
-        <span className="text-sm font-bold">邀请好友</span>
-      </button>
-
       {/* 复制成功提示 */}
       {copied && (
-        <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
           链接已复制
         </div>
       )}
