@@ -17,12 +17,22 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto flex w-full max-w-[430px] flex-col gap-4 px-4 pt-6 pb-28 sm:pt-10">
-      {/* Header bar */}
-      <section className="rounded-3xl border border-white/70 bg-white/80 p-4 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
-        <div className="flex items-center justify-between gap-3 px-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Wander
-          </p>
+      {/* 合并的 Header + Hero 卡片 */}
+      <section className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/80 p-5 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+        {/* 顶部 Header */}
+        <div className="flex items-center justify-between gap-3 mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full ring-2 ring-orange-700 overflow-hidden">
+              <img
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMKvbpNKJG8j1JmkB4GxJHVe-ax-wvSx3mtudIp3uZwCNJA_lzrsUT10qujZVcJ46kAYpYhuB2hYfdAmPHRsQhw4QDJ2z03UbcaJ_UqwD_Scb6OHuQw6sBe4eqcLCC_OifVCj-KE8zOVR99App8_2FCCJi0-dHo1lMO5XK_-BVOplltb11yxg0LMBkhJEVykzrIK1Bfr3_PjJ9zP-W-dSn7bZFhBYDSUcQHnVS8QVrWkVukXK9cFS_jJiJybWRyJVtk_6lAXI6Jd2h"
+                alt="用户头像"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <h1 className="text-xl font-black text-orange-700 italic font-['Plus_Jakarta_Sans'] tracking-tight">
+              PlanGO
+            </h1>
+          </div>
           <Link
             href="/auth"
             className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:shadow-sm active:scale-[0.98]"
@@ -30,13 +40,9 @@ export default async function HomePage() {
             {bootstrap.currentUser ? bootstrap.currentUser.name : "登录"}
           </Link>
         </div>
-      </section>
 
-      {/* Hero card */}
-      <section className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/80 p-4 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
-        <div className="mt-4">
-          <CreateTripForm />
-        </div>
+        {/* 创建行程表单 */}
+        <CreateTripForm />
       </section>
 
       {/* 进行中的旅行 */}

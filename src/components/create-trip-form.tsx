@@ -456,9 +456,12 @@ export function CreateTripForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="flex w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-3.5 text-[14px] font-semibold text-white transition hover:bg-slate-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+        className="group relative inline-flex items-center justify-center w-full px-8 py-4 font-headline font-bold text-white transition-all duration-200 bg-gradient-to-br from-primary to-primary-fixed rounded-lg shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isPending ? "AI 正在生成计划..." : "AI 生成旅行计划"}
+        <span className="text-lg">{isPending ? "AI 正在生成计划..." : "开启行程"}</span>
+        <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+        </svg>
       </button>
 
       {error ? (
