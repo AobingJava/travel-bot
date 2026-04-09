@@ -310,23 +310,6 @@ export function TripMembers({
           <AMapComponent memberLocations={memberLocations} onCallClick={handleCallClick} />
         )}
 
-        {/* 集合信息卡片 */}
-        <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-sm">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h2 className="font-bold text-xl text-slate-800 leading-tight">
-                {trip.destination}
-              </h2>
-              <p className="text-slate-500 text-sm mt-1">
-                {showCallUI ? "别让大家等你哦。" : "享受旅途吧！"}
-              </p>
-            </div>
-            <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">
-              {trip.stage === "ongoing" ? "进行中" : "准备中"}
-            </span>
-          </div>
-        </div>
-
         {/* 提示等级按钮 - 仅在需要时显示 */}
         {showCallUI && (
           <>
