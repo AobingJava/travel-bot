@@ -307,7 +307,7 @@ export function CreateTripForm() {
     <form action={handleSubmit} className="space-y-4">
       <div className="space-y-1.5">
         <label className="text-[13px] font-medium text-slate-600" htmlFor="destination">
-          目的地
+          Plan
         </label>
         <input
           id="destination"
