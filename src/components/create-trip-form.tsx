@@ -314,8 +314,8 @@ export function CreateTripForm() {
           name="destination"
           value={form.destination}
           onChange={(event) => updateField("destination", event.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[14px] text-slate-950 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-          placeholder="例如：巴厘岛、京都、巴黎"
+          className="w-full aspect-square rounded-2xl border border-slate-200 bg-white px-4 py-4 text-[18px] text-slate-950 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+          placeholder="想去哪里玩？"
         />
       </div>
 
