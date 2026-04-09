@@ -4,7 +4,7 @@ import { ZodError } from "zod";
 import { getRepositoryFallbackUser } from "@/lib/app-service";
 import { createTripSchema } from "@/lib/validators";
 import { getSessionUser } from "@/lib/auth";
-import { generateTripDocument, type PlanningStep } from "@/lib/planner";
+import { generateTripDocument, generatePackingListOnly, type PlanningStep } from "@/lib/planner";
 import { getRepository } from "@/lib/repository";
 
 const encoder = new TextEncoder();
@@ -50,8 +50,26 @@ export async function POST(request: NextRequest) {
             })
           );
 
-          // 创建行程（带进度回调）
           const repository = getRepository();
+
+          // 第一阶段：只生成装备清单
+          sendProgress("packing", "正在整理装备清单...");
+          const packingList = await generatePackingListOnly(payload);
+
+          // 发送 packingList 完成事件
+          controller.enqueue(
+            encodeSSE({
+              type: "packing_complete",
+              packingList,
+              message: "装备清单已生成",
+            })
+          );
+
+          // 第二阶段：生成完整的行程（任务、路线等）
+          sendProgress("analyzing", "正在分析目的地特色与旅行主题...");
+          sendProgress("tasks", "正在生成行前准备清单...");
+          sendProgress("route", "正在规划最佳游览路线...");
+
           const trip = await generateTripDocument(
             payload,
             currentUser,
@@ -59,6 +77,9 @@ export async function POST(request: NextRequest) {
               sendProgress(step);
             },
           );
+
+          // 更新 packingList 到 trip
+          trip.packingList = packingList;
 
           // 保存到数据库
           await repository.createTrip(trip);
@@ -98,16 +119,16 @@ export async function POST(request: NextRequest) {
         {
           status: 400,
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "创建失败。" }),
+      JSON.stringify({ error: error instanceof Error ? error.message : "生成失败。" }),
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      },
+      }
     );
   }
 }

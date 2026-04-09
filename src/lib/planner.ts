@@ -334,6 +334,31 @@ async function generateWithModel(input: CreateTripInput): Promise<GeneratedTripP
   return parsePlanCompletion(raw, input);
 }
 
+// 只生成装备清单（快速返回）
+export async function generatePackingListOnly(input: CreateTripInput) {
+  const themeList = input.themes.map((theme) => getThemeLabel(theme)).join("、");
+  const tripDays = Math.ceil((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  const raw = await requestCompletionText({
+    messages: [
+      {
+        role: "system",
+        content:
+          "你是一个专业的中文旅行规划助手。请只输出合法 JSON，不要任何解释或额外文字。只需要返回 packingList 数组。",
+      },
+      {
+        role: "user",
+        content: `请为这次旅行生成装备清单：\n- 目的地：${input.destination}\n- 日期：${input.startDate} 到 ${input.endDate}（共${tripDays}天）\n- 人数：${input.travelerCount ?? 1}人\n- 主题：${themeList}\n\n**分类规则 - 根据旅行类型选择**：\n\n🏔️ **登山/徒步/户外探险类型**（主题包含自然、户外等）：\n- 👉衣裤篇：速干衣/打底（基础层）、抓绒、薄羽绒（中间层）、冲锋衣/裤（防护层）、厚羽绒\n- 👉鞋袜穿戴篇：登山鞋、冰爪、羊毛袜、防水手套、羊毛帽\n- 👉攀登装备篇：登山杖、安全带、雪镜、头灯、头盔\n- 👉负载篇：登山包、充电宝、急救包、垃圾袋、保温杯\n- 👉睡眠篇：睡袋、帐篷、防潮垫\n\n🏖️ **海边/海岛类型**（目的地包含海岛、三亚、马尔代夫等）：\n- 👉衣物篇：泳衣/泳裤、防晒衣、沙滩裤、速干毛巾、拖鞋\n- 👉防护篇：防晒霜（高倍数）、墨镜、遮阳帽、防晒袖套\n- 👉水上装备篇：防水手机袋、浮潜镜、呼吸管、沙滩鞋\n- 👉电子篇：手机充电器、充电宝、耳机、转换插头\n- 👉证件篇：身份证、护照、机票确认单、酒店预订单\n\n🏙️ **城市观光/文化类型**（主题包含文化、购物、美食等）：\n- 👉衣物篇：舒适步行鞋、换洗衣物（${tripDays}套）、外套、睡衣\n- 👉电子篇：手机充电器、充电宝、耳机、转换插头、自拍杆\n- 👉个护篇：牙刷、牙膏、洗发水/沐浴露分装瓶、护肤品、化妆品\n- 👉药品篇：感冒药、肠胃药、创可贴、晕车药、驱蚊液\n- 👉证件篇：身份证、护照、银行卡、现金、行程单\n- 👉杂物篇：折叠伞、水杯、纸巾、湿巾、小背包\n\n❄️ **冰雪/滑雪类型**（目的地包含哈尔滨、北海道、阿尔卑斯等）：\n- 👉保暖衣物篇：保暖内衣、抓绒衣、厚羽绒、滑雪服、滑雪裤\n- 👉配件篇：保暖手套、羊毛帽、围巾、厚羊毛袜、暖宝宝\n- 👉滑雪装备篇：滑雪镜、滑雪袜、护脸、滑雪手套\n- 👉电子篇：充电宝（低温易耗电）、防水手机袋、头灯\n- 👉药品篇：感冒药、暖宫贴、创可贴、润唇膏\n\n**输出格式要求**：\n- 只返回 packingList 数组\n- 根据旅行主题和目的地选择最匹配的分类方案\n- 每个分类作为一个 item，name 为分类名称（如"👉衣裤篇"、"👉鞋袜穿戴篇"）\n- 每个分类必须包含 subItems 数组，列出该分类下的所有子物品\n- subItems 中的每个物品都有 name 字段\n- category 字段指定分类类型（clothing/electronics/toiletries/documents/weather/gear）\n- 分类数量：5-6 个分类\n- 每个分类子物品数量：4-6 个具体物品\n`,
+      },
+    ],
+    temperature: 0.7,
+    thinkingEnabled: false,
+  });
+
+  const result = JSON.parse(raw);
+  return result.packingList || result;
+}
+
 async function replanWithModel(trip: TripDocument): Promise<TripDocument> {
   const now = new Date().toISOString();
   const duringTasks = sortTasks(trip.tasks).filter((task) => task.phase === "during");

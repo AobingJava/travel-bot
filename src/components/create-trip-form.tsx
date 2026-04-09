@@ -268,6 +268,7 @@ export function CreateTripForm() {
 
         const decoder = new TextDecoder();
         let tripId = "";
+        let packingList = null;
         setStreamedOutput([]);
 
         while (true) {
@@ -282,6 +283,11 @@ export function CreateTripForm() {
               const data = JSON.parse(line.slice(6));
               if (data.type === "complete") {
                 tripId = data.tripId;
+              } else if (data.type === "packing_complete") {
+                // 装备清单已生成，先保存
+                packingList = data.packingList;
+                // 添加到流式输出
+                setStreamedOutput((prev) => [...prev, "装备清单已生成"]);
               } else if (data.type === "step") {
                 // 流式输出每一步的进展
                 setStreamedOutput((prev) => [...prev, data.message]);
@@ -294,6 +300,10 @@ export function CreateTripForm() {
         }
 
         if (tripId) {
+          // 如果有装备清单，先存储到临时状态（可选）
+          if (packingList) {
+            console.log("Packing list generated:", packingList);
+          }
           // 跳转到规划动态页面
           router.push(`/trips/${tripId}/planning`);
         }
