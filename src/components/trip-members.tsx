@@ -12,10 +12,10 @@ const statusLabel = {
 // 高德地图容器组件
 function AMapComponent({
   members,
-  destination,
+  onCallClick,
 }: {
   members: TripMember[];
-  destination: string;
+  onCallClick: (member: TripMember) => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -29,60 +29,7 @@ function AMapComponent({
       statusType: "arrived" | "late" | "not-out" | "unknown";
     }>
   >([]);
-  const [loading, setLoading] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
-
-  // 初始化地图
-  useEffect(() => {
-    if (typeof window === "undefined" || !mapRef.current) return;
-
-    const initMap = () => {
-      if (!window.AMap) {
-        setLoading(false);
-        return;
-      }
-
-      // 默认显示目的地中心（北京）
-      const defaultCenter = [116.405285, 39.904989];
-
-      mapInstanceRef.current = new window.AMap.Map(mapRef.current!, {
-        zoom: 15,
-        center: defaultCenter,
-        viewMode: "3D",
-      });
-
-      // 添加缩放控件
-      window.AMap.plugin(["AMap.Scale", "AMap.ToolBar"], () => {
-        mapInstanceRef.current.addControl(new window.AMap.Scale());
-        mapInstanceRef.current.addControl(new window.AMap.ToolBar());
-      });
-
-      setLoading(false);
-    };
-
-    // 如果 AMap 还没加载，等待一下
-    if (window.AMap) {
-      initMap();
-    } else {
-      const checkAMap = setInterval(() => {
-        if (window.AMap) {
-          clearInterval(checkAMap);
-          initMap();
-        }
-      }, 100);
-
-      setTimeout(() => {
-        clearInterval(checkAMap);
-        setLoading(false);
-      }, 5000);
-    }
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.destroy();
-      }
-    };
-  }, []);
 
   // 获取用户当前位置
   useEffect(() => {
@@ -216,14 +163,6 @@ function AMapComponent({
   return (
     <>
       <div className="relative h-[400px] w-full overflow-hidden rounded-2xl bg-slate-100">
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
-            <div className="text-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent mx-auto" />
-              <p className="mt-2 text-sm text-slate-500">加载地图中...</p>
-            </div>
-          </div>
-        )}
         {locationError && !userLocation && (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
             <div className="text-center p-4">
@@ -249,9 +188,24 @@ function AMapComponent({
             key={loc.member.id}
             className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-[0_2px_12px_rgba(15,23,42,0.04)]"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[13px] font-semibold text-slate-600">
-              {loc.member.avatarText}
+            {/* 头像 - 带状态圆环 */}
+            <div className="relative">
+              {loc.statusType === "late" && (
+                <div className="absolute -inset-1 bg-amber-400/40 rounded-full animate-ping" />
+              )}
+              <div
+                className={`relative h-12 w-12 rounded-full flex items-center justify-center text-[14px] font-bold shadow-md ${
+                  loc.statusType === "arrived"
+                    ? "bg-emerald-100 text-emerald-700 ring-4 ring-emerald-400"
+                    : loc.statusType === "late"
+                    ? "bg-amber-100 text-amber-700 ring-4 ring-amber-400"
+                    : "bg-slate-100 text-slate-600 ring-4 ring-slate-300"
+                }`}
+              >
+                {loc.member.avatarText}
+              </div>
             </div>
+            {/* 信息区域 */}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <h3 className="truncate text-[14px] font-semibold text-slate-950">
@@ -262,18 +216,23 @@ function AMapComponent({
                     已到
                   </span>
                 )}
+                {loc.statusType === "late" && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-700">
+                    迟到
+                  </span>
+                )}
               </div>
               <p className="text-[12px] text-slate-500">{loc.status}</p>
             </div>
-            <span
-              className={`h-2 w-2 rounded-full ${
-                loc.statusType === "arrived"
-                  ? "bg-emerald-500"
-                  : loc.statusType === "late"
-                  ? "bg-amber-500 animate-pulse"
-                  : "bg-slate-300"
-              }`}
-            />
+            {/* 电话按钮 */}
+            <button
+              onClick={() => onCallClick(loc.member)}
+              className="shrink-0 w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center hover:bg-orange-200 active:scale-95 transition"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+              </svg>
+            </button>
           </article>
         ))}
       </div>
@@ -286,7 +245,18 @@ export function TripMembers({
 }: {
   trip: TripDocument;
 }) {
-  const [showLocationPermission, setShowLocationPermission] = useState(false);
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<TripMember | null>(null);
+
+  const handleCallClick = (member: TripMember) => {
+    setSelectedMember(member);
+    setShowCallModal(true);
+  };
+
+  const handleReminderLevel = (level: "low" | "medium" | "high") => {
+    console.log(`发送${level}等级提醒给${selectedMember?.name}`);
+    setShowCallModal(false);
+  };
 
   return (
     <>
@@ -298,7 +268,7 @@ export function TripMembers({
 
       <section className="space-y-3 pb-20">
         {/* 高德地图组件 */}
-        <AMapComponent members={trip.members} destination={trip.destination} />
+        <AMapComponent members={trip.members} destination={trip.destination} onCallClick={handleCallClick} />
 
         {/* 集合信息卡片 */}
         <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/80 shadow-sm">
@@ -355,11 +325,14 @@ export function TripMembers({
         </div>
 
         {/* 呼叫伙伴按钮 */}
-        <button className="w-full bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between group active:scale-95 transition-all">
+        <button
+          onClick={() => setShowCallModal(true)}
+          className="w-full bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between group active:scale-95 transition-all"
+        >
           <div className="text-left">
             <p className="font-bold text-lg">呼叫伙伴</p>
             <p className="text-xs text-white/80">
-              {trip.travelerCount} 位好友在线
+              {trip.members.filter((m) => m.id !== trip.ownerId).length} 位好友在线
             </p>
           </div>
           <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md">
@@ -368,6 +341,94 @@ export function TripMembers({
             </svg>
           </div>
         </button>
+
+        {/* 电话提醒弹窗 - 三挡选择 */}
+        {showCallModal && (
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-sm rounded-t-3xl md:rounded-3xl bg-white p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-slate-800">
+                  {selectedMember ? `提醒${selectedMember.name}` : "呼叫伙伴"}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowCallModal(false);
+                    setSelectedMember(null);
+                  }}
+                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition"
+                >
+                  <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <p className="text-sm text-slate-500 mb-4">选择提醒强度</p>
+
+              <div className="space-y-3">
+                {/* 初级提醒 */}
+                <button
+                  onClick={() => handleReminderLevel("low")}
+                  className="w-full rounded-2xl border-2 border-slate-200 p-4 flex items-center gap-4 hover:border-slate-300 hover:bg-slate-50 transition"
+                >
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-semibold text-slate-800">初级提醒</p>
+                    <p className="text-xs text-slate-500">发送一条友好的文字通知</p>
+                  </div>
+                  <div className="w-3 h-3 rounded-full bg-slate-300" />
+                </button>
+
+                {/* 中级提醒 */}
+                <button
+                  onClick={() => handleReminderLevel("medium")}
+                  className="w-full rounded-2xl border-2 border-amber-200 p-4 flex items-center gap-4 hover:border-amber-300 hover:bg-amber-50 transition"
+                >
+                  <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-semibold text-amber-800">中级提醒</p>
+                    <p className="text-xs text-amber-600">发送通知并播放提示音</p>
+                  </div>
+                  <div className="w-3 h-3 rounded-full bg-amber-500" />
+                </button>
+
+                {/* 高级提醒 */}
+                <button
+                  onClick={() => handleReminderLevel("high")}
+                  className="w-full rounded-2xl border-2 border-rose-200 p-4 flex items-center gap-4 hover:border-rose-300 hover:bg-rose-50 transition"
+                >
+                  <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-semibold text-rose-800">高级提醒</p>
+                    <p className="text-xs text-rose-600">连续通知直到对方确认</p>
+                  </div>
+                  <div className="w-3 h-3 rounded-full bg-rose-500 animate-pulse" />
+                </button>
+              </div>
+
+              {selectedMember && (
+                <button
+                  onClick={() => setSelectedMember(null)}
+                  className="mt-4 w-full rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+                >
+                  选择其他伙伴
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </section>
     </>
   );
