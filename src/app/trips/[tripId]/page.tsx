@@ -44,7 +44,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
         <TaskBoard tripId={trip.id} tasks={trip.tasks} banner={trip.banner} />
       ) : null}
       {view === "companions" ? (
-        <TripMembers trip={trip} />
+        <TripMembers trip={trip} currentUser={currentUser} />
       ) : null}
       {view === "meeting" ? <MemoryView trip={trip} /> : null}
       {view === "map" ? <TripMap tasks={trip.tasks} /> : null}

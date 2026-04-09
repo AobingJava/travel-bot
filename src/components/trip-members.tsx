@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { TripDocument, TripMember, MemberLocationStatus } from "@/lib/types";
+import type { TripDocument, TripMember, MemberLocationStatus, SessionUser } from "@/lib/types";
 import Script from "next/script";
 
 const statusLabel = {
@@ -24,9 +24,11 @@ function getAvatarUrl(index: number): string {
 // 高德地图容器组件
 function AMapComponent({
   memberLocations,
+  currentUser,
   onCallClick,
 }: {
   memberLocations: MemberLocationStatus[];
+  currentUser: SessionUser | null;
   onCallClick: (member: TripMember) => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -134,16 +136,34 @@ function AMapComponent({
       });
     });
 
-    // 添加用户位置标记
+    // 添加用户位置标记（带头像）
     if (userLocation) {
+      const avatarUrl = currentUser?.avatarUrl || getAvatarUrl(0);
+      // 创建自定义头像标记内容
+      const userContent = `
+        <div style="
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          overflow: hidden;
+          border: 3px solid #10b981;
+          box-shadow: 0 2px 8px rgba(15,23,42,0.3);
+          background: #fff;
+        ">
+          <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;" />
+        </div>
+      `;
+
       const userMarker = new window.AMap.Marker({
         position: [userLocation.lng, userLocation.lat],
-        title: "我的位置",
+        content: userContent,
+        offset: new window.AMap.Pixel(-20, -20),
+        title: currentUser?.name || "我的位置",
         extData: { type: "user" },
       });
       userMarker.setMap(map);
     }
-  }, [memberLocations, userLocation]);
+  }, [memberLocations, userLocation, currentUser]);
 
   return (
     <>
@@ -239,8 +259,10 @@ function AMapComponent({
 
 export function TripMembers({
   trip,
+  currentUser,
 }: {
   trip: TripDocument;
+  currentUser: SessionUser | null;
 }) {
   const [selectedMember, setSelectedMember] = useState<TripMember | null>(null);
   const [memberLocations, setMemberLocations] = useState<MemberLocationStatus[]>([]);
@@ -372,7 +394,7 @@ export function TripMembers({
             </div>
           </div>
         ) : (
-          <AMapComponent memberLocations={memberLocations} onCallClick={handleCallClick} />
+          <AMapComponent memberLocations={memberLocations} currentUser={currentUser} onCallClick={handleCallClick} />
         )}
 
         {/* 提示等级选择器 - 一行三个 */}
