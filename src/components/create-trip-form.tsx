@@ -314,41 +314,83 @@ export function CreateTripForm() {
   }
 
   return (
-    <form action={handleSubmit} className="space-y-5">
-      {/* Plan 输入框 - 正方形大输入框 */}
-      <div className="space-y-2">
-        <input
-          id="destination"
-          name="destination"
-          value={form.destination}
-          onChange={(event) => updateField("destination", event.target.value)}
-          className="w-full aspect-square rounded-[20px] input-surface px-5 py-5 text-[20px] text-on-surface placeholder:text-on-surface-variant/50 outline-none transition focus:bg-surface-container-lowest"
-          placeholder="输入你想去哪里？"
-        />
-      </div>
+    <form action={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-1 items-end gap-6 md:grid-cols-4">
+        <label className="space-y-2 md:col-span-1">
+          <span className="block px-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+            目的地
+          </span>
+          <div className="relative">
+            <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-primary">
+              location_on
+            </span>
+            <input
+              id="destination"
+              name="destination"
+              value={form.destination}
+              onChange={(event) => updateField("destination", event.target.value)}
+              className="w-full rounded-lg bg-surface-container-low px-4 py-4 pl-12 font-medium text-on-surface placeholder:text-slate-400 outline-none ring-0 transition-all focus:ring-2 focus:ring-primary/30"
+              placeholder="想去哪里？"
+            />
+          </div>
+        </label>
 
-      {/* 日期选择区域 - 并排设计 */}
-      <div className="grid grid-cols-2 gap-3">
-        <label className="space-y-2">
-          <span className="text-[12px] font-semibold text-on-surface-variant">出发</span>
-          <input
-            name="startDate"
-            type="date"
-            value={form.startDate}
-            onChange={(event) => updateField("startDate", event.target.value)}
-            className="w-full input-surface rounded-[14px] px-4 py-3.5 text-[14px] text-on-surface outline-none transition focus:bg-surface-container-lowest"
-          />
+        <label className="space-y-2 md:col-span-1">
+          <span className="block px-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+            出发
+          </span>
+          <div className="relative">
+            <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              calendar_today
+            </span>
+            <input
+              name="startDate"
+              type="date"
+              value={form.startDate}
+              onChange={(event) => updateField("startDate", event.target.value)}
+              className="w-full rounded-lg bg-surface-container-low px-4 py-4 pl-12 font-medium text-on-surface outline-none ring-0 transition-all focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
         </label>
-        <label className="space-y-2">
-          <span className="text-[12px] font-semibold text-on-surface-variant">返回</span>
-          <input
-            name="endDate"
-            type="date"
-            value={form.endDate}
-            onChange={(event) => updateField("endDate", event.target.value)}
-            className="w-full input-surface rounded-[14px] px-4 py-3.5 text-[14px] text-on-surface outline-none transition focus:bg-surface-container-lowest"
-          />
+
+        <label className="space-y-2 md:col-span-1">
+          <span className="block px-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+            返回
+          </span>
+          <div className="relative">
+            <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              calendar_month
+            </span>
+            <input
+              name="endDate"
+              type="date"
+              value={form.endDate}
+              onChange={(event) => updateField("endDate", event.target.value)}
+              className="w-full rounded-lg bg-surface-container-low px-4 py-4 pl-12 font-medium text-on-surface outline-none ring-0 transition-all focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
         </label>
+
+        <div className="md:col-span-1">
+          <button
+            type="submit"
+            disabled={isPending}
+            className="signature-gradient flex w-full items-center justify-center gap-3 rounded-xl py-4 text-lg font-bold text-white shadow-[0_10px_30px_rgba(160,59,0,0.3)] transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isPending ? (
+              <svg className="h-6 w-6 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            ) : (
+              <>
+                GO
+                {" "}
+                <span className="material-symbols-outlined">arrow_forward</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* 热门推荐标签 - 输入目的地后才显示 */}
@@ -509,24 +551,6 @@ export function CreateTripForm() {
           </div>
         </div>
       )}
-
-      {/* GO 按钮 - 居中圆形渐变 */}
-      <div className="flex justify-center pt-2">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="group relative inline-flex items-center justify-center w-[72px] h-[72px] rounded-full btn-primary-gradient disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isPending ? (
-            <svg className="w-9 h-9 text-white animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-          ) : (
-            <span className="text-xl font-black text-white font-display">GO</span>
-          )}
-        </button>
-      </div>
 
       {error ? (
         <p className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-700">

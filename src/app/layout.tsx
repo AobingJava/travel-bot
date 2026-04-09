@@ -33,9 +33,15 @@ export default function RootLayout({
   return (
     <html
       lang="zh-CN"
-      className={`${bodyFont.variable} ${monoFont.variable} h-full antialiased`}
+      className={`${bodyFont.variable} ${monoFont.variable} ${headlineFont.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        />
+      </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>{children}</body>
     </html>
   );

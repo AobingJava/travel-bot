@@ -16,21 +16,24 @@
   --on-primary: #ffffff;
 
   /* Secondary */
-  --secondary: #3d57a7;
-  --secondary-container: #d4dbf7;
-  --on-secondary-container: #1e306b;
+  --secondary: #486172;
+  --on-secondary: #ffffff;
+  --secondary-container: #c9e3f7;
+  --on-secondary-container: #4d6677;
 
   /* Tertiary - 成功/生态绿 */
   --tertiary: #00685c;
-  --tertiary-fixed: #00a88f;
-  --on-tertiary-container: #ccede6;
+  --tertiary-container: #008375;
+  --tertiary-fixed: #79f7e3;
+  --on-tertiary: #ffffff;
+  --on-tertiary-container: #f4fffb;
 
   /* Text & Outline */
   --foreground: #1b1c1b;
   --background: #fbf9f7;
   --on-surface: #1b1c1b;
   --on-surface-variant: #6b6764;
-  --outline-variant: rgba(225, 191, 178, 0.15);
+  --outline-variant: #e1bfb2;
 
   /* Glass & Effects */
   --glass-surface: rgba(251, 249, 247, 0.7);
@@ -62,10 +65,14 @@
   --color-primary-container: var(--primary-container);
   --color-on-primary: var(--on-primary);
   --color-secondary: var(--secondary);
+  --color-on-secondary: var(--on-secondary);
   --color-secondary-container: var(--secondary-container);
   --color-on-secondary-container: var(--on-secondary-container);
   --color-tertiary: var(--tertiary);
+  --color-tertiary-container: var(--tertiary-container);
   --color-tertiary-fixed: var(--tertiary-fixed);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-on-tertiary-container: var(--on-tertiary-container);
   --color-on-surface: var(--on-surface);
   --color-on-surface-variant: var(--on-surface-variant);
   --color-outline-variant: var(--outline-variant);
@@ -104,6 +111,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -138,6 +152,10 @@ select {
   background: var(--gradient-primary);
   box-shadow: var(--shadow-float);
   transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.signature-gradient {
+  background: var(--gradient-primary);
 }
 
 .btn-primary-gradient:active {

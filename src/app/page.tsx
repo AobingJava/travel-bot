@@ -45,83 +45,142 @@ function getCoverImage(destination: string): string {
 export default async function HomePage() {
   const bootstrap = await getHomeBootstrap();
 
-  // 按状态分类旅行计划
   const ongoingTrips = bootstrap.trips.filter((trip) => trip.stage === "ongoing" || trip.stage === "planning");
   const completedTrips = bootstrap.trips.filter((trip) => trip.stage === "completed");
 
   return (
-    <main className="mx-auto flex w-full max-w-[430px] flex-col gap-4 px-4 pt-6 pb-28 sm:pt-10">
-      {/* Header */}
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-primary-container/30">
+    <>
+      <header className="fixed top-0 z-50 flex w-full items-center justify-between bg-[#fbf9f7]/70 px-6 py-4 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 overflow-hidden rounded-full bg-surface-container-highest">
             <img
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMKvbpNKJG8j1JmkB4GxJHVe-ax-wvSx3mtudIp3uZwCNJA_lzrsUT10qujZVcJ46kAYpYhuB2hYfdAmPHRsQhw4QDJ2z03UbcaJ_UqwD_Scb6OHuQw6sBe4eqcLCC_OifVCj-KE8zOVR99App8_2FCCJi0-dHo1lMO5XK_-BVOplltb11yxg0LMBkhJEVykzrIK1Bfr3_PjJ9zP-W-dSn7bZFhBYDSUcQHnVS8QVrWkVukXK9cFS_jJiJybWRyJVtk_6lAXI6Jd2h"
               alt="用户头像"
-              className="w-full h-full object-cover"
+              className="h-full w-full object-cover"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMKvbpNKJG8j1JmkB4GxJHVe-ax-wvSx3mtudIp3uZwCNJA_lzrsUT10qujZVcJ46kAYpYhuB2hYfdAmPHRsQhw4QDJ2z03UbcaJ_UqwD_Scb6OHuQw6sBe4eqcLCC_OifVCj-KE8zOVR99App8_2FCCJi0-dHo1lMO5XK_-BVOplltb11yxg0LMBkhJEVykzrIK1Bfr3_PjJ9zP-W-dSn7bZFhBYDSUcQHnVS8QVrWkVukXK9cFS_jJiJybWRyJVtk_6lAXI6Jd2h"
             />
           </div>
-          <h1 className="text-2xl font-black text-primary italic font-headline tracking-tight">
+          <span className="bg-gradient-to-r from-[#a03b00] to-[#c94c00] bg-clip-text font-headline text-2xl font-extrabold text-transparent">
             PlanGO
-          </h1>
+          </span>
         </div>
-        <Link
-          href="/auth"
-          className="rounded-full border border-slate-200 bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface transition hover:bg-surface-container-low active:scale-[0.98]"
-        >
-          {bootstrap.currentUser ? bootstrap.currentUser.name : "登录"}
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            aria-label="消息通知"
+            className="text-slate-600 transition-opacity hover:opacity-80 active:scale-95"
+          >
+            <span className="material-symbols-outlined">notifications</span>
+          </button>
+          <Link
+            href="/auth"
+            className="rounded-full border border-slate-200 bg-surface-container-lowest px-4 py-2 text-sm font-medium text-on-surface transition hover:bg-surface-container-low active:scale-[0.98]"
+          >
+            {bootstrap.currentUser ? bootstrap.currentUser.name : "登录"}
+          </Link>
+        </div>
       </header>
 
-      {/* 创建行程表单卡片 - 使用 elevated 卡片样式 */}
-      <section className="rounded-[24px] bg-surface-container-lowest p-5 shadow-ambient">
-        <div className="mb-4">
-          <h2 className="text-[28px] font-black font-display text-on-surface">Plan</h2>
-          <p className="text-xs text-on-surface-variant mt-1">输入你想去哪里？</p>
-        </div>
-        <CreateTripForm />
-      </section>
-
-      {/* 进行中的旅行 - 横向滚动卡片 */}
-      {ongoingTrips.length > 0 && (
-        <section className="rounded-[24px] bg-surface-container-lowest p-4 shadow-ambient">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold font-display text-on-surface">进行中的旅行</h2>
-            <div className="flex items-center gap-1 text-on-surface-variant/60">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+      <main className="mx-auto w-full max-w-5xl px-6 pb-32 pt-24">
+        <section className="relative mb-12">
+          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <div className="max-w-xl">
+              <h1 className="mb-4 font-headline text-5xl font-extrabold leading-tight tracking-tight text-on-surface md:text-6xl">
+                让P人
+                <br />
+                <span className="text-primary italic">快速出门</span>
+              </h1>
             </div>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-            {ongoingTrips.map((trip) => (
-              <TripCard key={trip.id} trip={trip} />
-            ))}
-          </div>
         </section>
-      )}
 
-      {/* 已完成的旅行 - 列表样式 */}
-      {completedTrips.length > 0 && (
-        <section className="rounded-[24px] bg-surface-container-lowest p-4 shadow-ambient">
-          <h2 className="text-sm font-bold font-display text-on-surface mb-3">已完成的旅行</h2>
-          <div className="space-y-2">
-            {completedTrips.map((trip) => (
-              <CompletedTripCard key={trip.id} trip={trip} />
-            ))}
+        <section className="mb-16">
+          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-8 shadow-[0_20px_50px_rgba(27,28,27,0.04)]">
+            <CreateTripForm />
           </div>
         </section>
-      )}
+
+        {ongoingTrips.length > 0 && (
+          <section id="ongoing" className="mb-14">
+            <div className="mb-8 flex items-center justify-between">
+              <h2 className="font-headline text-3xl font-bold tracking-tight text-on-surface">进行中的旅行</h2>
+              <span className="flex items-center gap-1 font-bold text-primary">
+                查看全部
+                {" "}
+                <span className="material-symbols-outlined text-lg">chevron_right</span>
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+              {ongoingTrips.map((trip) => (
+                <TripCard key={trip.id} trip={trip} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {completedTrips.length > 0 && (
+          <section className="mb-14">
+            <h2 className="mb-6 font-headline text-3xl font-bold tracking-tight text-on-surface">已完成旅行</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {completedTrips.map((trip) => (
+                <CompletedTripCard key={trip.id} trip={trip} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="mb-8 mt-16">
+          <h2 className="mb-8 font-headline text-3xl font-bold tracking-tight text-on-surface">精选目的地</h2>
+          <div className="grid h-[500px] grid-cols-2 grid-rows-2 gap-4 md:grid-cols-4">
+            <div className="group relative col-span-2 row-span-2 overflow-hidden rounded-xl">
+              <img
+                alt="瑞士山间湖泊"
+                className="h-full w-full object-cover"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhbcttFm8Fs7SjYndfXCY-TN48PZeFpp8T6tXIGzuwt6qWInlHuCJlorIuy7fGz30jAA0gXpJchOG6XsNjnkBblD97ooIN72yn9-JuCd5COVZvp_j70BTYJ168SQEIIw9AK5s3NgZDGFlGNuKZnEWckxLHTAvjYSzC_FrIaeR-GiDHH8H5i8zFpiunWgCYTmq6B19JOryuppypl3hHBfwBeNB_D038cZE8OfAggfFN7BaYUO4pAYiEQYr6j2I6teLY4MmXeInFvYQ"
+              />
+              <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 to-transparent p-6">
+                <p className="mb-1 text-xs font-bold uppercase tracking-widest text-white/80">冒险</p>
+                <h4 className="font-headline text-2xl font-bold text-white">瑞士阿尔卑斯</h4>
+              </div>
+            </div>
+            <div className="group relative col-span-1 row-span-1 overflow-hidden rounded-xl">
+              <img
+                alt="马尔代夫海岛"
+                className="h-full w-full object-cover"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmn9wHxcKKCUANLW6milGx4ZvZ5pxz21lm9Xo535WJQGUwZhbdsFLOMzHatcO9QkmBB5Pf9gt7QSKiOfqexqlUPiWAxVyCuVsGXiEnSIMCLlE7P-J4QsubX1DAuBRrbDXIW-6DBLOLx38AYofEgYWAnmTpb4Lw8nOLES7-WJZg3lAjvy1TCOLM0xNv7Y_kN0CI0u--1E9t0vUctwtDeFtNME6kMAIaFNq7PwNTK7ySsnU5VNh4S-Pg5AL1kKChzYu6BvybocJRxAU"
+              />
+              <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/40 to-transparent p-4">
+                <h4 className="font-headline text-lg font-bold text-white">马尔代夫</h4>
+              </div>
+            </div>
+            <div className="group relative col-span-1 row-span-1 overflow-hidden rounded-xl">
+              <img
+                alt="京都红叶寺庙"
+                className="h-full w-full object-cover"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtz_rQgbbiTJx41snyxcM0ZFMdJrWk2YEuT81NJIQcoqSWgAHyKc6D9PY7USTla0pqqpW31qZ6hBw_ttxgE9hJixN5bORIifa4QFo4UUKO6YN7QqNr7sYKdb3KWEm-FsyX5AFos-fzijQ79Q8TUiY2YcHfjPQZlC-dQEHnKlNBi9Lryycz9Uq0xC2KHOyCIbFs8xxTiDAmIuV8h1KO4u3pPjEq5GOgyD6ji6P_zHfZ_1_s-ZF8XdfGcJPZO0wDdemBX7Wy4rY_WR0"
+              />
+              <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/40 to-transparent p-4">
+                <h4 className="font-headline text-lg font-bold text-white">京都</h4>
+              </div>
+            </div>
+            <div className="group relative col-span-2 row-span-1 overflow-hidden rounded-xl">
+              <img
+                alt="威尼斯水城黄昏"
+                className="h-full w-full object-cover"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCt8N3hanufWwcEhdSGhXfxVpCUO-ksKqKLE46L6yzLJAX0ttj8LiYOAMRbbN1vw1VVG18IZuq0v189BxWnki0ZWlvhVjW1hDIalUvb4Fhnq-f4iglgv01nQiQ3Wb7QxabpgbriPAlrjZZz_2Zb1hPYDtsVl0Y7B6HwMfqSkZQMi_Swd0hqpAWruxVmtSRSrLMiEWpJ2cfa8JEAwxPIndINL2wYM35uS8DsFe--ngpjKe0eXaCyRGkBFM3lo-xPkeWQWY5NQw63mV0"
+              />
+              <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/40 to-transparent p-6">
+                <h4 className="font-headline text-xl font-bold text-white">威尼斯水巷</h4>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
 
       <HomeMobileNav />
-    </main>
+    </>
   );
 }
 
-// 进行中的旅行卡片 - 封面 + 地名
 function TripCard({ trip }: { readonly trip: TripDocument }) {
   const coverImage = getCoverImage(trip.destination);
 
@@ -133,8 +192,8 @@ function TripCard({ trip }: { readonly trip: TripDocument }) {
   };
 
   const stageColors: Record<TripStage, string> = {
-    ongoing: "bg-emerald-100 text-emerald-700",
-    planning: "bg-blue-100 text-blue-700",
+    ongoing: "bg-tertiary-container text-on-tertiary-container",
+    planning: "bg-secondary-container text-on-secondary-container",
     completed: "bg-slate-100 text-slate-600",
     draft: "bg-amber-100 text-amber-700",
   };
@@ -142,60 +201,62 @@ function TripCard({ trip }: { readonly trip: TripDocument }) {
   return (
     <Link
       href={`/trips/${trip.id}`}
-      className="group flex-shrink-0 w-[160px] rounded-[20px] overflow-hidden bg-surface-container-lowest shadow-card transition-all duration-300 hover:shadow-float active:scale-[0.98]"
+      className="group relative flex flex-col overflow-hidden rounded-xl bg-surface-container-lowest shadow-[0_10px_30px_rgba(0,0,0,0.02)] transition-transform hover:-translate-y-1 md:flex-row"
     >
-      {/* 封面图 */}
-      <div className="relative h-[180px] overflow-hidden">
+      <div className="relative h-48 overflow-hidden md:h-auto md:w-2/5">
         <img
           src={coverImage}
           alt={trip.destination}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
-        {/* 渐变叠加 */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
-        {/* 状态标签 */}
-        <span className={`absolute top-2.5 right-2.5 chip-pill px-2.5 py-1 text-[9px] backdrop-blur-sm bg-white/90 ${stageColors[trip.stage]}`}>
+        <span className={`absolute left-4 top-4 rounded-full px-3 py-1 text-[10px] font-bold tracking-widest ${stageColors[trip.stage]}`}>
           {stageLabel[trip.stage]}
         </span>
-        {/* 目的地名称 */}
-        <div className="absolute bottom-0 left-0 right-0 p-3">
-          <p className="text-white text-base font-bold font-display drop-shadow-lg">
-            {trip.destination}
-          </p>
-          <p className="text-white/80 text-[10px] mt-0.5">
-            {trip.travelerCount}人 · {trip.themes[0] || "旅行"}
-          </p>
+      </div>
+      <div className="flex flex-col justify-between p-6 md:w-3/5">
+        <div>
+          <h3 className="mb-2 font-headline text-xl font-bold leading-tight text-on-surface">
+            {trip.destination} {trip.themes[0] ? `${trip.themes[0]}之旅` : "行程计划"}
+          </h3>
+          <div className="flex items-center gap-4 text-sm text-on-surface-variant">
+            <span className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-base">schedule</span>
+              {trip.startDate || "待确认"}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-base">group</span>
+              {trip.travelerCount}人
+            </span>
+          </div>
+        </div>
+        <div className="mt-6 flex items-center justify-end">
+          <span className="text-on-surface-variant transition-colors group-hover:text-primary">
+            <span className="material-symbols-outlined">more_horiz</span>
+          </span>
         </div>
       </div>
     </Link>
   );
 }
 
-// 已完成的旅行卡片 - 简约列表
 function CompletedTripCard({ trip }: { readonly trip: TripDocument }) {
   return (
     <Link
       href={`/trips/${trip.id}`}
-      className="flex items-center gap-3 rounded-[16px] bg-surface-container-low p-3 transition hover:bg-surface-container active:scale-[0.99]"
+      className="flex items-center gap-3 rounded-xl bg-surface-container-lowest p-4 shadow-card transition hover:bg-surface-container-low active:scale-[0.99]"
     >
-      <div className="w-12 h-12 rounded-[12px] overflow-hidden flex-shrink-0">
+      <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-[12px]">
         <img
           src={getCoverImage(trip.destination)}
           alt={trip.destination}
-          className="w-full h-full object-cover"
+          className="h-full w-full object-cover"
         />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-on-surface truncate">
-          {trip.destination}
-        </p>
-        <p className="text-[11px] text-on-surface-variant">
-          {trip.travelerCount}人旅行
-        </p>
+        <p className="truncate text-sm font-semibold text-on-surface">{trip.destination}</p>
+        <p className="text-[11px] text-on-surface-variant">{trip.travelerCount}人旅行</p>
       </div>
-      <span className="chip-pill px-2.5 py-1 text-[9px] bg-slate-100 text-slate-600">
-        已完成
-      </span>
+      <span className="chip-pill bg-slate-100 px-2.5 py-1 text-[9px] text-slate-600">已完成</span>
     </Link>
   );
 }
