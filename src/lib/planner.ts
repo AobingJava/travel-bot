@@ -79,7 +79,16 @@ const planSchema = z.object({
   tasks: z.array(taskSchema),
   dailySuggestions: z.array(dailySuggestionSchema),
   banner: bannerSchema,
-  packingList: z.array(z.string()).optional(),
+  packingList: z.union([
+    z.array(z.string()),
+    z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      category: z.enum(["core", "clothing", "electronics", "toiletries", "documents", "weather"]),
+      checked: z.boolean().optional(),
+      weatherDependent: z.boolean().optional(),
+    })),
+  ]).optional(),
 });
 
 const replanSchema = z.object({
@@ -292,11 +301,11 @@ async function generateWithModel(input: CreateTripInput): Promise<GeneratedTripP
       {
         role: "system",
         content:
-          "你是一个中文旅行规划助手。只输出合法 JSON，不要附加解释。请返回一个有吸引力的行程名称、3 个阶段的 TODO、每日建议、一个顶部 banner 和装备清单。行程名称应该结合目的地和主题特色，简洁有力（8-20 字）。任务数控制在 8-10 个，移动端易读。旅途中打卡任务（phase=during）至少给出 3 个，并尽量补齐 locationName、scheduledTime（HH:mm）、durationMinutes、travelMode、travelMinutes、routeHint，以及 lat/lng 坐标（十进制度数）。路线建议要像真实行程，时间连续、通勤合理、方便在移动端显示。装备清单应该是 8-15 个旅行必备物品的字符串数组。",
+          "你是一个中文旅行规划助手。只输出合法 JSON，不要附加解释。请返回一个有吸引力的行程名称、3 个阶段的 TODO、每日建议、一个顶部 banner 和装备清单。行程名称应该结合目的地和主题特色，简洁有力（8-20 字）。任务数控制在 8-10 个，移动端易读。旅途中打卡任务（phase=during）至少给出 3 个，并尽量补齐 locationName、scheduledTime（HH:mm）、durationMinutes、travelMode、travelMinutes、routeHint，以及 lat/lng 坐标（十进制度数）。路线建议要像真实行程，时间连续、通勤合理、方便在移动端显示。装备清单需要按分类组织，包含以下类别：core（核心必备）、clothing（衣物）、electronics（数码电子）、toiletries（个护健康）、documents（证件文件）、weather（天气相关）。每个物品包含 id、name、category 字段，天气相关物品设置 weatherDependent: true。装备清单总共 12-18 个物品。",
       },
       {
         role: "user",
-        content: `请为这次旅行生成计划：目的地 ${input.destination}，日期 ${input.startDate} 到 ${input.endDate}，人数 ${input.travelerCount ?? 1}，主题 ${themeList}。请同时生成一个适合目的地和活动类型的装备清单。`,
+        content: `请为这次旅行生成计划：目的地 ${input.destination}，日期 ${input.startDate} 到 ${input.endDate}，人数 ${input.travelerCount ?? 1}，主题 ${themeList}。请根据目的地的天气、季节和活动类型生成分类装备清单，特别注意：1) 雨季目的地要包含雨具 2) 海边要包含防晒用品 3) 城市购物要包含购物袋 4) 户外要包含防护用品。`,
       },
     ],
   });
@@ -1093,43 +1102,109 @@ function fallbackPlan(input: CreateTripInput): GeneratedTripPlan {
   };
 }
 
-function generateFallbackPackingList(input: CreateTripInput): string[] {
-  const baseItems = ["护照/身份证", "钱包和现金", "手机和充电器", "换洗衣物", "个人洗漱用品", "常用药品"];
-
-  // 根据目的地类型添加特定物品
+function generateFallbackPackingList(input: CreateTripInput): { id: string; name: string; category: "core" | "clothing" | "electronics" | "toiletries" | "documents" | "weather"; checked?: boolean; weatherDependent?: boolean }[] {
   const destination = input.destination.toLowerCase();
-  const specificItems: string[] = [];
 
+  // 核心必备物品
+  const coreItems = [
+    { id: createId("pack"), name: "护照/身份证", category: "core" as const },
+    { id: createId("pack"), name: "钱包和现金", category: "core" as const },
+    { id: createId("pack"), name: "手机", category: "core" as const },
+  ];
+
+  // 证件文件
+  let documentItems = [
+    { id: createId("pack"), name: "签证文件", category: "documents" as const },
+    { id: createId("pack"), name: "机票/车票确认单", category: "documents" as const },
+    { id: createId("pack"), name: "酒店预订确认", category: "documents" as const },
+  ];
+
+  // 衣物类 - 根据目的地调整
+  let clothingItems = [
+    { id: createId("pack"), name: "换洗衣物（内衣裤/袜子）", category: "clothing" as const },
+    { id: createId("pack"), name: "舒适步行鞋", category: "clothing" as const },
+  ];
+
+  // 根据目的地添加特殊衣物
   if (destination.includes("海岛") || destination.includes("沙滩") || destination.includes("巴厘岛") || destination.includes("马尔代夫")) {
-    specificItems.push("防晒霜", "泳衣泳镜", "沙滩拖鞋");
-  } else if (destination.includes("日本") || destination.includes("韩国") || destination.includes("城市")) {
-    specificItems.push("交通卡", "便携 WiFi", "购物袋");
+    clothingItems = [
+      ...clothingItems,
+      { id: createId("pack"), name: "泳衣泳镜", category: "clothing" as const },
+      { id: createId("pack"), name: "沙滩拖鞋", category: "clothing" as const },
+    ];
   } else if (destination.includes("瑞士") || destination.includes("阿尔卑斯") || destination.includes("雪山")) {
-    specificItems.push("保暖衣物", "防滑鞋", "墨镜");
-  } else if (destination.includes("户外") || destination.includes("登山") || destination.includes("徒步")) {
-    specificItems.push("登山鞋", "背包", "水壶");
+    clothingItems = [
+      ...clothingItems,
+      { id: createId("pack"), name: "保暖外套", category: "clothing" as const },
+      { id: createId("pack"), name: "防滑鞋", category: "clothing" as const },
+    ];
   }
 
-  // 根据旅行主题添加
-  if (input.themes.includes("nature")) {
-    specificItems.push("驱蚊液", "轻便户外鞋");
+  // 天气相关物品 - 根据目的地判断
+  let weatherItems: { id: string; name: string; category: "weather"; weatherDependent: boolean }[] = [];
+  if (destination.includes("日本") || destination.includes("韩国") || destination.includes("台湾") || destination.includes("东南亚")) {
+    weatherItems = [...weatherItems, { id: createId("pack"), name: "折叠雨伞", category: "weather" as const, weatherDependent: true }];
   }
+  if (destination.includes("海岛") || destination.includes("沙滩") || destination.includes("东南亚") || destination.includes("泰国") || destination.includes("巴厘岛")) {
+    weatherItems = [
+      ...weatherItems,
+      { id: createId("pack"), name: "防晒霜", category: "weather" as const, weatherDependent: true },
+      { id: createId("pack"), name: "太阳镜", category: "weather" as const, weatherDependent: true },
+    ];
+  }
+  if (destination.includes("户外") || destination.includes("登山") || destination.includes("徒步")) {
+    weatherItems = [...weatherItems, { id: createId("pack"), name: "防晒帽", category: "weather" as const, weatherDependent: true }];
+  }
+
+  // 数码电子
+  let electronicsItems = [
+    { id: createId("pack"), name: "充电器/数据线", category: "electronics" as const },
+    { id: createId("pack"), name: "充电宝", category: "electronics" as const },
+  ];
+
+  if (destination.includes("日本") || destination.includes("韩国") || destination.includes("城市")) {
+    electronicsItems = [...electronicsItems, { id: createId("pack"), name: "便携 WiFi/电话卡", category: "electronics" as const }];
+  }
+
+  // 个护健康
+  let toiletriesItems = [
+    { id: createId("pack"), name: "个人洗漱用品", category: "toiletries" as const },
+    { id: createId("pack"), name: "常用药品", category: "toiletries" as const },
+  ];
+
+  if (destination.includes("海岛") || destination.includes("东南亚") || destination.includes("热带")) {
+    toiletriesItems = [...toiletriesItems, { id: createId("pack"), name: "驱蚊液", category: "toiletries" as const }];
+  }
+
+  // 购物相关
   if (input.themes.includes("shopping")) {
-    specificItems.push("折叠购物袋", "信用卡");
+    clothingItems = [...clothingItems, { id: createId("pack"), name: "折叠购物袋", category: "clothing" as const }];
+  }
+
+  // 户外活动
+  if (input.themes.includes("nature")) {
+    toiletriesItems = [...toiletriesItems, { id: createId("pack"), name: "轻便户外鞋", category: "toiletries" as const }];
   }
 
   // 根据旅行时长调整
   const days = Math.max(1, Math.ceil((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / (1000 * 60 * 60 * 24)));
   if (days > 7) {
-    specificItems.push("足够换洗衣物", "折叠洗衣袋");
+    clothingItems = [...clothingItems, { id: createId("pack"), name: "折叠洗衣袋", category: "clothing" as const }];
   }
 
   // 根据人数
   if ((input.travelerCount ?? 1) > 3) {
-    specificItems.push("团体标识物", "应急联系人清单");
+    documentItems = [...documentItems, { id: createId("pack"), name: "应急联系人清单", category: "documents" as const }];
   }
 
-  return [...baseItems, ...specificItems].slice(0, 12);
+  return [
+    ...coreItems,
+    ...documentItems,
+    ...clothingItems,
+    ...weatherItems,
+    ...electronicsItems,
+    ...toiletriesItems,
+  ].slice(0, 18);
 }
 
 function enumerateDates(startDate: string, endDate: string) {

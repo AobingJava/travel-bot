@@ -113,6 +113,16 @@ export interface TripNotification {
   readAt?: string;
 }
 
+export interface PackingListItem {
+  id: string;
+  name: string;
+  category: PackingCategory;
+  checked?: boolean;
+  weatherDependent?: boolean;
+}
+
+export type PackingCategory = "core" | "clothing" | "electronics" | "toiletries" | "documents" | "weather";
+
 export interface TripDocument {
   id: string;
   slug: string;
@@ -123,7 +133,7 @@ export interface TripDocument {
   travelerCount: number;
   themes: ThemeKey[];
   customTags?: string[];
-  packingList?: string[];
+  packingList?: string[] | PackingListItem[];
   ownerEmail: string;
   ownerName: string;
   stage: TripStage;
@@ -195,5 +205,5 @@ export interface GeneratedTripPlan {
   tasks: TripTask[];
   dailySuggestions: TripDailySuggestion[];
   banner: TripBanner;
-  packingList?: string[];
+  packingList?: string[] | PackingListItem[];
 }
