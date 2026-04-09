@@ -8,6 +8,7 @@ import { getTravelModeText } from "@/lib/utils";
 
 type TripMapProps = {
   tasks: TripTask[];
+  taskPhotos?: Record<string, string[]>;
 };
 
 const labelColors: Record<string, string> = {
@@ -23,11 +24,31 @@ function getMarkerColor(label?: string) {
   return labelColors[label ?? "default"] ?? labelColors.default;
 }
 
-export function TripMap({ tasks }: TripMapProps) {
+export function TripMap({ tasks, taskPhotos = {} }: TripMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [photos, setPhotos] = useState<Record<string, string[]>>(taskPhotos);
+
+  // 监听照片更新事件
+  useEffect(() => {
+    const handlePhotoUpdate = (event: CustomEvent<{ taskId: string; photos: string[] }>) => {
+      setPhotos((prev) => ({ ...prev, [event.detail.taskId]: event.detail.photos }));
+      // 重新渲染地图标记
+      if (mapInstanceRef.current) {
+        renderMapMarkers();
+      }
+    };
+
+    window.addEventListener("task-photo-updated", handlePhotoUpdate as EventListener);
+    return () => window.removeEventListener("task-photo-updated", handlePhotoUpdate as EventListener);
+  }, []);
+
+  // 同步外部传入的照片
+  useEffect(() => {
+    setPhotos(taskPhotos);
+  }, [taskPhotos]);
 
   const mapTasks = useMemo(
     () =>
@@ -46,6 +67,118 @@ export function TripMap({ tasks }: TripMapProps) {
     (sum, task) => sum + (task.durationMinutes ?? 0) + (task.travelMinutes ?? 0),
     0,
   );
+
+  const renderMapMarkers = () => {
+    if (!mapInstanceRef.current) return;
+
+    const AMap = window.AMap;
+    const map = mapInstanceRef.current;
+
+    map.clearMap();
+
+    const infoWindow = new AMap.InfoWindow({
+      isCustom: false,
+      offset: new AMap.Pixel(0, -28),
+    });
+
+    const markers = mapTasks.map((task, index) => {
+      const color = getMarkerColor(task.label);
+      const taskPhotos = photos[task.id] || [];
+
+      // 如果有照片，在标记下方显示小方块
+      const photoIndicators = taskPhotos.length > 0
+        ? `<div style="display:flex;gap:2px;margin-top:4px;justify-content:center;">
+            ${taskPhotos.slice(0, 4).map(() =>
+              `<div style="width:6px;height:6px;border-radius:2px;background:${color};"></div>`
+            ).join("")}
+          </div>`
+        : "";
+
+      const content = `<div style="
+        display:flex;align-items:center;gap:8px;
+        background:#ffffff;color:#0f172a;
+        padding:6px 10px 6px 6px;border-radius:18px;
+        font-size:11px;font-weight:700;white-space:nowrap;
+        box-shadow:0 8px 24px rgba(15,23,42,0.16);
+        border:1px solid rgba(226,232,240,0.95);
+      ">
+        <span style="
+          display:flex;align-items:center;justify-content:center;
+          width:22px;height:22px;border-radius:999px;
+          background:${color};color:#fff;font-size:11px;font-weight:700;
+        ">${index + 1}</span>
+        <span>${task.locationName ?? task.title}</span>
+        ${photoIndicators}
+      </div>`;
+
+      const marker = new AMap.Marker({
+        position: new AMap.LngLat(task.lng!, task.lat!),
+        content,
+        offset: new AMap.Pixel(-30, -24),
+        title: task.title,
+      });
+
+      marker.on("click", () => {
+        const photosHtml = taskPhotos.length > 0
+          ? `<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">
+              ${taskPhotos.map((url) => `
+                <div style="width:40px;height:40px;border-radius:6px;overflow:hidden;">
+                  <img src="${url}" style="width:100%;height:100%;object:cover;" />
+                </div>
+              `).join("")}
+            </div>`
+          : "";
+
+        infoWindow.setContent(`
+          <div style="padding:6px 4px;min-width:180px;">
+            <div style="font-size:13px;font-weight:700;color:#0f172a;">${task.title}</div>
+            <div style="margin-top:4px;font-size:12px;color:#475569;">${task.locationName ?? "待确认地点"}</div>
+            <div style="margin-top:6px;font-size:12px;color:#0f172a;">
+              ${task.scheduledTime ? `${task.scheduledTime} 出发` : "时间待定"}
+              ${task.durationMinutes ? ` · 停留约 ${task.durationMinutes} 分钟` : ""}
+            </div>
+            ${
+              task.routeHint
+                ? `<div style="margin-top:6px;font-size:12px;line-height:1.5;color:#64748b;">${task.routeHint}</div>`
+                : ""
+            }
+            ${photosHtml}
+          </div>
+        `);
+        infoWindow.open(map, marker.getPosition());
+      });
+
+      return marker;
+    });
+
+    const routePath = mapTasks.map((task) => [task.lng!, task.lat!]);
+    const polyline =
+      routePath.length > 1
+        ? new AMap.Polyline({
+            path: routePath,
+            strokeColor: "#0f172a",
+            strokeWeight: 4,
+            strokeOpacity: 0.72,
+            strokeStyle: "solid",
+            lineJoin: "round",
+            showDir: true,
+          })
+        : null;
+
+    map.add(markers);
+    if (polyline) {
+      map.add(polyline);
+    }
+
+    setTimeout(() => {
+      map.setFitView(polyline ? [...markers, polyline] : markers, false, [
+        42,
+        42,
+        42,
+        42,
+      ]);
+    }, 200);
+  };
 
   useEffect(() => {
     if (mapTasks.length === 0) {
@@ -71,89 +204,7 @@ export function TripMap({ tasks }: TripMapProps) {
         });
 
         mapInstanceRef.current = map;
-
-        const infoWindow = new AMap.InfoWindow({
-          isCustom: false,
-          offset: new AMap.Pixel(0, -28),
-        });
-
-        const markers = mapTasks.map((task, index) => {
-          const color = getMarkerColor(task.label);
-          const content = `<div style="
-            display:flex;align-items:center;gap:8px;
-            background:#ffffff;color:#0f172a;
-            padding:6px 10px 6px 6px;border-radius:18px;
-            font-size:11px;font-weight:700;white-space:nowrap;
-            box-shadow:0 8px 24px rgba(15,23,42,0.16);
-            border:1px solid rgba(226,232,240,0.95);
-          ">
-            <span style="
-              display:flex;align-items:center;justify-content:center;
-              width:22px;height:22px;border-radius:999px;
-              background:${color};color:#fff;font-size:11px;font-weight:700;
-            ">${index + 1}</span>
-            <span>${task.locationName ?? task.title}</span>
-          </div>`;
-
-          const marker = new AMap.Marker({
-            position: new AMap.LngLat(task.lng!, task.lat!),
-            content,
-            offset: new AMap.Pixel(-30, -24),
-            title: task.title,
-          });
-
-          marker.on("click", () => {
-            infoWindow.setContent(`
-              <div style="padding:6px 4px;min-width:180px;">
-                <div style="font-size:13px;font-weight:700;color:#0f172a;">${task.title}</div>
-                <div style="margin-top:4px;font-size:12px;color:#475569;">${task.locationName ?? "待确认地点"}</div>
-                <div style="margin-top:6px;font-size:12px;color:#0f172a;">
-                  ${task.scheduledTime ? `${task.scheduledTime} 出发` : "时间待定"}
-                  ${task.durationMinutes ? ` · 停留约 ${task.durationMinutes} 分钟` : ""}
-                </div>
-                ${
-                  task.routeHint
-                    ? `<div style="margin-top:6px;font-size:12px;line-height:1.5;color:#64748b;">${task.routeHint}</div>`
-                    : ""
-                }
-              </div>
-            `);
-            infoWindow.open(map, marker.getPosition());
-          });
-
-          return marker;
-        });
-
-        const routePath = mapTasks.map((task) => [task.lng!, task.lat!]);
-        const polyline =
-          routePath.length > 1
-            ? new AMap.Polyline({
-                path: routePath,
-                strokeColor: "#0f172a",
-                strokeWeight: 4,
-                strokeOpacity: 0.72,
-                strokeStyle: "solid",
-                lineJoin: "round",
-                showDir: true,
-              })
-            : null;
-
-        map.add(markers);
-        if (polyline) {
-          map.add(polyline);
-        }
-
-        setTimeout(() => {
-          if (!destroyed) {
-            map.setFitView(polyline ? [...markers, polyline] : markers, false, [
-              42,
-              42,
-              42,
-              42,
-            ]);
-          }
-        }, 200);
-
+        renderMapMarkers();
         setStatus("ready");
       })
       .catch((err: Error) => {
@@ -174,7 +225,7 @@ export function TripMap({ tasks }: TripMapProps) {
         mapInstanceRef.current = null;
       }
     };
-  }, [mapTasks]);
+  }, [mapTasks, photos]);
 
   if (mapTasks.length === 0) {
     return (

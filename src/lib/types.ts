@@ -50,6 +50,7 @@ export interface TripTask {
   travelMinutes?: number;
   travelMode?: TravelMode;
   routeHint?: string;
+  photos?: string[];
 }
 
 export interface TripMember {
