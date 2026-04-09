@@ -12,10 +12,10 @@ import {
   getTravelModeText,
 } from "@/lib/utils";
 
-const phases: Array<{ key: TaskPhase; label: string }> = [
-  { key: "during", label: "旅途打卡" },
-  { key: "post", label: "旅后总结" },
-];
+// const phases: Array<{ key: TaskPhase; label: string }> = [
+//   { key: "during", label: "旅途打卡" },
+//   { key: "post", label: "旅后总结" },
+// ];
 
 export function TaskBoard({
   tripId,
@@ -39,9 +39,9 @@ export function TaskBoard({
   const visibleTasks = useMemo(
     () => {
       const baseTasks = tasks.filter((task) => task.phase === activePhase);
-      // 在"旅途打卡"tab 显示 AI 生成的 during 任务 + 用户打卡任务
+      // 在"旅途打卡"tab 只显示用户打卡任务，隐藏 AI 生成的 during 任务
       if (activePhase === "during") {
-        return [...baseTasks, ...userCheckinTasks];
+        return userCheckinTasks;
       }
       return baseTasks;
     },
