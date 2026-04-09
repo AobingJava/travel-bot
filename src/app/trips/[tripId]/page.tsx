@@ -6,6 +6,7 @@ import { TripHeader } from "@/components/trip-header";
 import { TripMembers } from "@/components/trip-members";
 import { TodoList } from "@/components/todo-list";
 import { MemoryView } from "@/components/memory-view";
+import { TripMap } from "@/components/trip-map";
 import { getTripWithViewer } from "@/lib/app-service";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
         <TripMembers trip={trip} />
       ) : null}
       {view === "meeting" ? <MemoryView trip={trip} /> : null}
+      {view === "map" ? <TripMap tasks={trip.tasks} /> : null}
 
       <MobileNav tripId={trip.id} />
     </main>
