@@ -14,7 +14,7 @@ import {
 } from "@/lib/utils";
 
 const phases: Array<{ key: TaskPhase; label: string }> = [
-  { key: "pre", label: "行前准备" },
+  { key: "pre", label: "代办清单" },
   { key: "during", label: "旅途打卡" },
   { key: "post", label: "旅后总结" },
 ];

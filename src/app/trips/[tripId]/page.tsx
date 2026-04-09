@@ -29,7 +29,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
   }
 
   const viewParam = resolvedSearchParams.view;
-  const view = typeof viewParam === "string" ? viewParam : "overview";
+  const view = typeof viewParam === "string" ? viewParam : "tasks";
   const canInvite =
     (currentUser?.email?.toLowerCase() ?? "aihe@example.com") ===
     trip.ownerEmail.toLowerCase();
