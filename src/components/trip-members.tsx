@@ -219,19 +219,13 @@ export function TripMembers({
 }: {
   trip: TripDocument;
 }) {
-  const [showCallModal, setShowCallModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TripMember | null>(null);
   const [memberLocations, setMemberLocations] = useState<MemberLocationStatus[]>([]);
   const [showCallUI, setShowCallUI] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [reminderLevel, setReminderLevel] = useState<"low" | "medium" | "high">("low");
-
-  const reminderLevelLabels = {
-    low: "轻度提醒",
-    medium: "中度提醒",
-    high: "强烈提醒",
-  };
+  const [showReminderCard, setShowReminderCard] = useState(false);
 
   // 获取用户位置
   useEffect(() => {
@@ -280,14 +274,56 @@ export function TripMembers({
 
   const handleCallClick = (member: TripMember) => {
     setSelectedMember(member);
-    setShowCallModal(true);
   };
 
   const handleReminderLevel = (level: "low" | "medium" | "high") => {
     setReminderLevel(level);
-    console.log(`发送${level}等级提醒给${selectedMember?.name}`);
-    setShowCallModal(false);
+    setShowReminderCard(true);
   };
+
+  const reminderLevels = [
+    {
+      level: "low" as const,
+      label: "轻度",
+      sublabel: "友好询问",
+      color: "bg-emerald-500",
+      textColor: "text-emerald-700",
+      bgColor: "bg-emerald-50",
+      borderColor: "border-emerald-200",
+      icon: "📍",
+      title: "宝，你到底在哪？",
+      subtitle: "紧急通讯",
+      buttonLabel: "共享实时位置",
+    },
+    {
+      level: "medium" as const,
+      label: "中度",
+      sublabel: "表达焦虑",
+      color: "bg-amber-500",
+      textColor: "text-amber-700",
+      bgColor: "bg-amber-50",
+      borderColor: "border-amber-200",
+      icon: "⏰",
+      title: "为什么还没出门？",
+      subtitle: "登机口 14:45 关闭",
+      buttonLabel: "我现在就出门",
+    },
+    {
+      level: "high" as const,
+      label: "重度",
+      sublabel: "最后通牒",
+      color: "bg-rose-600",
+      textColor: "text-rose-700",
+      bgColor: "bg-rose-50",
+      borderColor: "border-rose-200",
+      icon: "🚫",
+      title: "还没出就别出来了",
+      subtitle: "最后通牒",
+      buttonLabel: "我已经车上了",
+    },
+  ];
+
+  const currentReminder = reminderLevels.find((r) => r.level === reminderLevel) || reminderLevels[0];
 
   return (
     <>
@@ -310,124 +346,96 @@ export function TripMembers({
           <AMapComponent memberLocations={memberLocations} onCallClick={handleCallClick} />
         )}
 
-        {/* 提示等级按钮 - 仅在需要时显示 */}
+        {/* 提示等级选择器 - 一行三个 */}
         {showCallUI && (
           <>
-            <button
-              onClick={() => setShowCallModal(true)}
-              className="w-full bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between group active:scale-95 transition-all"
-            >
-              <div className="text-left">
-                <p className="font-bold text-lg">{reminderLevelLabels[reminderLevel]}</p>
-                <p className="text-xs text-white/80">
-                  点击选择提醒强度
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-              </div>
-            </button>
+            <div className="grid grid-cols-3 gap-2">
+              {reminderLevels.map((item) => (
+                <button
+                  key={item.level}
+                  onClick={() => handleReminderLevel(item.level)}
+                  className={`relative overflow-hidden rounded-2xl p-3.5 text-center transition-all active:scale-95 ${
+                    reminderLevel === item.level
+                      ? `${item.color} text-white shadow-lg scale-105`
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  <span className="text-xl mb-1 block">{item.icon}</span>
+                  <p className={`text-[11px] font-bold ${reminderLevel === item.level ? "text-white" : "text-slate-600"}`}>
+                    {item.label}
+                  </p>
+                  <p className={`text-[9px] ${reminderLevel === item.level ? "text-white/80" : "text-slate-400"}`}>
+                    {item.sublabel}
+                  </p>
+                  {reminderLevel === item.level && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/30" />
+                  )}
+                </button>
+              ))}
+            </div>
 
-            {/* 电话提醒弹窗 - 三挡选择 */}
-            {showCallModal && (
-              <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 p-4">
-                <div className="w-full max-w-sm rounded-t-3xl md:rounded-3xl bg-white p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-slate-800">
-                      {selectedMember ? `提醒${selectedMember.name}` : "选择提醒强度"}
-                    </h3>
-                    <button
-                      onClick={() => {
-                        setShowCallModal(false);
-                        setSelectedMember(null);
-                      }}
-                      className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition"
-                    >
-                      <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* 初级提醒 */}
-                    <button
-                      onClick={() => handleReminderLevel("low")}
-                      className={`w-full rounded-2xl border-2 p-4 flex items-center gap-4 transition ${
-                        reminderLevel === "low"
-                          ? "border-slate-800 bg-slate-50"
-                          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        reminderLevel === "low" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-500"
-                      }`}>
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className={`font-semibold ${reminderLevel === "low" ? "text-slate-900" : "text-slate-800"}`}>轻度提醒</p>
-                        <p className="text-xs text-slate-500">发送一条友好的文字通知</p>
-                      </div>
-                      <div className={`w-3 h-3 rounded-full ${
-                        reminderLevel === "low" ? "bg-slate-800" : "bg-slate-300"
-                      }`} />
-                    </button>
-
-                    {/* 中级提醒 */}
-                    <button
-                      onClick={() => handleReminderLevel("medium")}
-                      className={`w-full rounded-2xl border-2 p-4 flex items-center gap-4 transition ${
-                        reminderLevel === "medium"
-                          ? "border-amber-600 bg-amber-50"
-                          : "border-amber-200 hover:border-amber-300 hover:bg-amber-50"
-                      }`}
-                    >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        reminderLevel === "medium" ? "bg-amber-600 text-white" : "bg-amber-100 text-amber-600"
-                      }`}>
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className={`font-semibold ${reminderLevel === "medium" ? "text-amber-900" : "text-amber-800"}`}>中度提醒</p>
-                        <p className="text-xs text-amber-600">发送通知并播放提示音</p>
-                      </div>
-                      <div className={`w-3 h-3 rounded-full ${
-                        reminderLevel === "medium" ? "bg-amber-600" : "bg-amber-500"
-                      }`} />
-                    </button>
-
-                    {/* 高级提醒 */}
-                    <button
-                      onClick={() => handleReminderLevel("high")}
-                      className={`w-full rounded-2xl border-2 p-4 flex items-center gap-4 transition ${
-                        reminderLevel === "high"
-                          ? "border-rose-600 bg-rose-50"
-                          : "border-rose-200 hover:border-rose-300 hover:bg-rose-50"
-                      }`}
-                    >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        reminderLevel === "high" ? "bg-rose-600 text-white" : "bg-rose-100 text-rose-600"
-                      }`}>
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className={`font-semibold ${reminderLevel === "high" ? "text-rose-900" : "text-rose-800"}`}>强烈提醒</p>
-                        <p className="text-xs text-rose-600">连续通知直到对方确认</p>
-                      </div>
-                      <div className={`w-3 h-3 rounded-full ${
-                        reminderLevel === "high" ? "bg-rose-600 animate-pulse" : "bg-rose-500"
-                      }`} />
-                    </button>
-                  </div>
+            {/* 提醒卡片 - 点击后才展开 */}
+            {showReminderCard && (
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary-dim to-primary-container p-6 text-white shadow-2xl animate-in slide-in-from-top-4 duration-300">
+                {/* 顶部标签 */}
+                <div className="inline-block bg-primary-container/50 backdrop-blur-sm px-4 py-2 rounded-full text-xs font-bold tracking-widest uppercase mb-4">
+                  {currentReminder.subtitle}
                 </div>
+
+                {/* 主标题 */}
+                <h2 className="font-headline text-5xl font-black leading-tight tracking-tighter mb-6">
+                  {currentReminder.title}
+                </h2>
+
+                {/* 进度条 */}
+                <div className={`w-20 h-2 ${currentReminder.level === "high" ? "bg-error" : "bg-tertiary-fixed"} rounded-full mb-8`} />
+
+                {/* 操作按钮 */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      console.log(`发送${currentReminder.label}提醒给${selectedMember?.name}`);
+                      setShowReminderCard(false);
+                    }}
+                    className="flex-1 py-4 rounded-xl bg-white text-primary font-headline font-extrabold text-lg shadow-xl active:scale-95 transition-transform"
+                  >
+                    {currentReminder.buttonLabel}
+                  </button>
+                  <button
+                    onClick={() => setShowReminderCard(false)}
+                    className={`w-14 py-4 rounded-xl flex items-center justify-center shadow-xl ${
+                      currentReminder.level === "high"
+                        ? "bg-primary-dim text-white"
+                        : "bg-primary-container/30 text-white"
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* 底部状态 */}
+                {selectedMember && (
+                  <div className="mt-4 flex items-center gap-3 pt-4 border-t border-white/20">
+                    <div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden">
+                      <img
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMKvbpNKJG8j1JmkB4GxJHVe-ax-wvSx3mtudIp3uZwCNJA_lzrsUT10qujZVcJ46kAYpYhuB2hYfdAmPHRsQhw4QDJ2z03UbcaJ_UqwD_Scb6OHuQw6sBe4eqcLCC_OifVCj-KE8zOVR99App8_2FCCJi0-dHo1lMO5XK_-BVOplltb11yxg0LMBkhJEVykzrIK1Bfr3_PjJ9zP-W-dSn7bZFhBYDSUcQHnVS8QVrWkVukXK9cFS_jJiJybWRyJVtk_6lAXI6Jd2h"
+                        alt={selectedMember.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-white/80">正在提醒 {selectedMember.name}</p>
+                      <p className="text-[10px] text-white/50">PlanBuddy System</p>
+                    </div>
+                    {currentReminder.level === "high" && (
+                      <span className="bg-error text-on-error px-2 py-1 rounded-full text-[9px] font-black animate-pulse">
+                        极其紧急
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </>
