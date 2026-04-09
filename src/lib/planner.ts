@@ -319,11 +319,11 @@ async function generateWithModel(input: CreateTripInput): Promise<GeneratedTripP
       {
         role: "system",
         content:
-          "你是一个专业的中文旅行规划助手。请只输出合法 JSON，不要任何解释或额外文字。返回完整的旅行计划，包含：\n\n1. **行程名称**：结合目的地和主题特色，8-20 字\n2. **3 阶段任务**（8-12 个）：\n   - 行前准备（pre 阶段 3-4 个）：证件办理、机票酒店、物品准备、预约预订等\n   - 旅途打卡（during 阶段 3-4 个）：景点游览、美食体验、购物娱乐，必须包含具体景点名称、locationName、scheduledTime(HH:mm)、durationMinutes、travelMode、travelMinutes、routeHint，以及 lat/lng 坐标（十进制度数）\n   - 旅后总结（post 阶段 1-2 个）：照片整理、预算复盘等\n3. **每日建议**：每天的行程概要\n4. **顶部 banner**：行程亮点提示\n5. **装备清单**：按 6 类组织（core/clothing/electronics/toiletries/documents/weather），每类 2-4 个物品，共 12-18 个。天气相关物品设置 weatherDependent:true\n\n任务必须具体可执行，包含真实景点名称和合理的时间安排。",
+          "你是一个专业的中文旅行规划助手。请只输出合法 JSON，不要任何解释或额外文字。\n\n请严格按照以下 JSON 结构输出：\n{\n  \"name\": \"行程名称（字符串）\",\n  \"stage\": \"draft|planning|ongoing|completed\",\n  \"phases\": {\n    \"pre\": [{\"title\": \"任务标题\", \"notes\": \"备注\", \"label\": \"suggestion|transport|lodging|food\"}],\n    \"during\": [{\"title\": \"任务标题\", \"notes\": \"备注\", \"label\": \"suggestion|food|backup\", \"locationName\": \"地点名\", \"scheduledTime\": \"HH:mm\", \"durationMinutes\": 数字，\"travelMode\": \"walk|subway|train|bus|taxi\", \"travelMinutes\": 数字，\"routeHint\": \"路线提示\", \"lat\": 数字，\"lng\": 数字}],\n    \"post\": [{\"title\": \"任务标题\", \"notes\": \"备注\", \"label\": \"summary\"}]\n  },\n  \"dailySuggestions\": [{\"dayIndex\": 数字，\"label\": \"日期\", \"title\": \"标题\", \"summary\": \"摘要\"}],\n  \"banner\": {\"title\": \"标题\", \"body\": \"正文\", \"tone\": \"neutral|weather|timing\"},\n  \"packingList\": [{\"name\": \"物品名\", \"category\": \"core|clothing|electronics|toiletries|documents|weather\", \"weatherDependent\": 布尔}]\n}",
       },
       {
         role: "user",
-        content: `请为这次旅行生成完整计划：\n- 目的地：${input.destination}\n- 日期：${input.startDate} 到 ${input.endDate}\n- 人数：${input.travelerCount ?? 1}人\n- 主题：${themeList}\n\n要求：\n1. 旅途中任务必须包含具体景点名称和坐标，例如"富士山五合目"、"清水寺"等真实景点\n2. 行前准备任务要详细：证件/签证、机票酒店、交通卡、网络、保险、预约景点等\n3. 根据目的地天气和季节生成装备清单，雨季加雨具，海边加防晒，城市加购物袋\n4. 所有任务时间安排合理，符合真实旅行逻辑`,
+        content: `请为这次旅行生成完整计划：\n- 目的地：${input.destination}\n- 日期：${input.startDate} 到 ${input.endDate}\n- 人数：${input.travelerCount ?? 1}人\n- 主题：${themeList}\n\n要求：\n1. phases.pre：3-4 个行前任务（证件、机票酒店、物品准备）\n2. phases.during：3-4 个旅途任务，必须包含真实景点名称（locationName）和坐标（lat/lng）\n3. phases.post：1-2 个旅后任务\n4. 所有任务必须有 title 字段`,
       },
     ],
     temperature: 0.7,
