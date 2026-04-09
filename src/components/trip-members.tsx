@@ -161,7 +161,7 @@ function AMapComponent({
 
     // 添加用户位置标记（带头像）
     if (userLocation) {
-      const avatarUrl = currentUser?.avatarUrl || getAvatarUrl(0);
+      const avatarUrl = getAvatarUrl(0);
       // 创建自定义头像标记内容
       const userContent = `
         <div style="
