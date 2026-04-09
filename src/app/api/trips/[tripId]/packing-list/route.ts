@@ -72,19 +72,32 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { itemId, checked } = body;
+    const { itemId, checked, subItemName } = body;
 
-    if (!itemId || typeof checked !== "boolean") {
+    if (!itemId) {
       return NextResponse.json({ error: "invalid data" }, { status: 400 });
     }
 
     let packingList = packingLists.get(tripId) || trip.packingList || [];
 
-    const updatedList = packingList.map((item) =>
-      typeof item === "string"
-        ? item
-        : { ...item, checked: item.id === itemId ? checked : item.checked }
-    ) as PackingListItem[];
+    const updatedList = packingList.map((item) => {
+      if (typeof item === "string" || item.id !== itemId) {
+        return item;
+      }
+
+      // 更新子物品
+      if (subItemName && item.subItems) {
+        return {
+          ...item,
+          subItems: item.subItems.map((sub) =>
+            sub.name === subItemName ? { ...sub, checked } : sub
+          ),
+        };
+      }
+
+      // 更新整个物品
+      return { ...item, checked };
+    }) as PackingListItem[];
 
     packingLists.set(tripId, updatedList);
 

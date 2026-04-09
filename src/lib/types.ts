@@ -119,8 +119,15 @@ export interface PackingListItem {
   id: string;
   name: string;
   category: PackingCategory;
+  subItems?: PackingSubItem[];
   checked?: boolean;
   weatherDependent?: boolean;
+}
+
+export interface PackingSubItem {
+  id: string;
+  name: string;
+  checked?: boolean;
 }
 
 export type PackingCategory = "core" | "clothing" | "electronics" | "toiletries" | "documents" | "weather";

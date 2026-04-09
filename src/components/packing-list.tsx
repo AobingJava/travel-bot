@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PackingListItem, PackingCategory } from "@/lib/types";
+import type { PackingListItem, PackingCategory, PackingSubItem } from "@/lib/types";
 import { getPackingCategoryLabel, getPackingCategoryIcon } from "@/lib/packing-list";
 
 interface PackingListProps {
@@ -34,12 +34,9 @@ export function PackingList({ tripId }: PackingListProps) {
 
   const toggleItem = async (itemId: string, currentChecked: boolean) => {
     const newChecked = !currentChecked;
-
-    // 乐观更新
     setPackingList((prev) =>
       prev.map((item) => (typeof item === "string" || item.id !== itemId ? item : { ...item, checked: newChecked }))
     );
-
     try {
       await fetch(`/api/trips/${tripId}/packing-list`, {
         method: "PATCH",
@@ -47,7 +44,6 @@ export function PackingList({ tripId }: PackingListProps) {
         body: JSON.stringify({ itemId, checked: newChecked }),
       });
     } catch (error) {
-      // 失败时回滚
       setPackingList((prev) =>
         prev.map((item) => (typeof item === "string" || item.id !== itemId ? item : { ...item, checked: currentChecked }))
       );
@@ -55,11 +51,34 @@ export function PackingList({ tripId }: PackingListProps) {
     }
   };
 
+  const toggleSubItem = async (itemId: string, subItemName: string, currentChecked: boolean) => {
+    const newChecked = !currentChecked;
+    setPackingList((prev) =>
+      prev.map((item) => {
+        if (typeof item === "string" || item.id !== itemId || !item.subItems) return item;
+        return {
+          ...item,
+          subItems: item.subItems.map((sub) =>
+            sub.name === subItemName ? { ...sub, checked: newChecked } : sub
+          ),
+        };
+      })
+    );
+    try {
+      await fetch(`/api/trips/${tripId}/packing-list`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId, subItemName, checked: newChecked }),
+      });
+    } catch (error) {
+      console.error("更新子物品失败:", error);
+    }
+  };
+
   const toggleCategory = (category: PackingCategory) => {
     setExpandedCategories((prev) => ({ ...prev, [category]: !prev[category] }));
   };
 
-  // 按分类分组
   const groupedItems = packingList.reduce((acc, item) => {
     if (typeof item === "string") return acc;
     const category = item.category;
@@ -70,9 +89,14 @@ export function PackingList({ tripId }: PackingListProps) {
     return acc;
   }, {} as Record<PackingCategory, PackingListItem[]>);
 
-  // 计算进度
   const totalItems = packingList.filter((item) => typeof item !== "string").length;
-  const checkedItems = packingList.filter((item) => typeof item !== "string" && item.checked).length;
+  const checkedItems = packingList.reduce((sum, item) => {
+    if (typeof item === "string") return sum;
+    if (item.subItems && item.subItems.length > 0) {
+      return sum + item.subItems.filter((sub) => sub.checked).length;
+    }
+    return sum + (item.checked ? 1 : 0);
+  }, 0);
   const progress = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0;
 
   if (loading) {
@@ -137,25 +161,45 @@ export function PackingList({ tripId }: PackingListProps) {
             {isExpanded && (
               <div className="divide-y divide-slate-100">
                 {items.map((item) => (
-                  <label
-                    key={item.id}
-                    className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={item.checked || false}
-                      onChange={() => toggleItem(item.id, item.checked || false)}
-                      className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className={`text-sm flex-1 ${item.checked ? "text-slate-400 line-through" : "text-slate-700"}`}>
-                      {item.name}
-                    </span>
-                    {item.weatherDependent && (
-                      <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                        天气
-                      </span>
+                  <div key={item.id} className="px-4 py-3">
+                    {/* 分类标题 */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-sm text-slate-600">
+                          {getPackingCategoryIcon(item.category)}
+                        </span>
+                      </div>
+                      <span className="text-sm font-semibold text-slate-700">{item.name}</span>
+                    </div>
+                    {/* 子物品列表 */}
+                    {item.subItems && item.subItems.length > 0 && (
+                      <div className="flex flex-wrap gap-2 ml-11">
+                        {item.subItems.map((subItem) => (
+                          <button
+                            key={subItem.id || subItem.name}
+                            type="button"
+                            onClick={() => toggleSubItem(item.id, subItem.name, subItem.checked || false)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                              subItem.checked
+                                ? "bg-emerald-600 text-white shadow-sm"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                          >
+                            {subItem.checked ? (
+                              <span className="flex items-center gap-1">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                {subItem.name}
+                              </span>
+                            ) : (
+                              subItem.name
+                            )}
+                          </button>
+                        ))}
+                      </div>
                     )}
-                  </label>
+                  </div>
                 ))}
               </div>
             )}
