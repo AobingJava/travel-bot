@@ -1,5 +1,4 @@
 import type { TripDocument } from "@/lib/types";
-import { getThemeLabel } from "@/lib/utils";
 import { InviteMemberForm } from "@/components/invite-member-form";
 
 export function TripOverview({ trip, canInvite }: { trip: TripDocument; canInvite: boolean }) {
@@ -7,23 +6,6 @@ export function TripOverview({ trip, canInvite }: { trip: TripDocument; canInvit
     <section className="space-y-3">
       {/* 邀请旅伴卡片 - 置顶 */}
       {canInvite && <InviteMemberForm trip={trip} />}
-
-      {/* 旅行主题 */}
-      <div className="grid gap-2 sm:grid-cols-2">
-        <article className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
-          <p className="text-xs font-medium text-slate-400">旅行主题</p>
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {trip.themes.map((theme) => (
-              <span
-                key={theme}
-                className="rounded-full bg-mint-100 px-2.5 py-1.5 text-[11px] font-semibold text-mint-700"
-              >
-                {getThemeLabel(theme)}
-              </span>
-            ))}
-          </div>
-        </article>
-      </div>
 
       {/* 装备清单 */}
       {trip.packingList && trip.packingList.length > 0 && (

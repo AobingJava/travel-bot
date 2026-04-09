@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import type { TripDocument } from "@/lib/types";
+import { getThemeLabel } from "@/lib/utils";
 
 function daysUntil(dateString: string): number {
   const now = new Date();
@@ -61,6 +62,19 @@ export function InviteMemberForm({ trip }: { trip: TripDocument }) {
           <p className="text-sm text-slate-500">
             大家已准备就绪。距离出发还有{daysLeft}天！
           </p>
+          {/* 旅行主题标签 - 位于日期下面 */}
+          {trip.themes && trip.themes.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {trip.themes.map((theme) => (
+                <span
+                  key={theme}
+                  className="rounded-full bg-mint-100 px-2.5 py-1.5 text-[10px] font-semibold text-mint-700"
+                >
+                  {getThemeLabel(theme)}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         {/* 旅伴头像列表 */}
         <div className="flex -space-x-2">
