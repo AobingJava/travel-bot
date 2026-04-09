@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useRef } from "react";
 
-import { ReplanButton } from "@/components/replan-button";
 import { TripMap } from "@/components/trip-map";
 import { TaskToggleButton } from "@/components/task-toggle-button";
 import type { TaskPhase, TripBanner, TripTask } from "@/lib/types";
@@ -138,16 +137,6 @@ export function TaskBoard({
   return (
     <section className="space-y-3">
       <div className="rounded-2xl bg-slate-950 p-4 text-white shadow-[0_12px_40px_rgba(15,23,42,0.18)]">
-        <div className="mb-3 flex items-center justify-between gap-4">
-          <div className="space-y-0.5">
-            <span className="inline-flex rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
-              动态调整中
-            </span>
-            <h2 className="text-xl font-bold">打卡进度</h2>
-          </div>
-          <ReplanButton tripId={tripId} />
-        </div>
-
         <div className="grid grid-cols-2 gap-1.5">
           {phases.map((phase) => {
             const isActive = activePhase === phase.key;
