@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { CreateTripForm } from "@/components/create-trip-form";
-import { HomeMobileNav } from "@/components/home-mobile-nav";
 import { getHomeBootstrap } from "@/lib/app-service";
 import type { TripStage, TripDocument } from "@/lib/types";
 
@@ -80,7 +79,7 @@ export default async function HomePage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl px-6 pb-32 pt-24">
+      <main className="mx-auto w-full max-w-5xl px-6 pb-16 pt-24">
         <section className="relative mb-12">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div className="max-w-xl">
@@ -129,8 +128,6 @@ export default async function HomePage() {
         )}
 
       </main>
-
-      <HomeMobileNav />
     </>
   );
 }

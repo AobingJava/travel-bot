@@ -21,6 +21,8 @@ export interface AppRepository {
   upsertMagicLink(record: MagicLinkRecord): Promise<void>;
   consumeMagicLink(tokenHash: string): Promise<MagicLinkRecord | null>;
   listTripsForCron(): Promise<TripDocument[]>;
+  /** 删除全部行程（含 D1 关联的 member_locations）。返回删除条数。 */
+  deleteAllTrips(): Promise<{ tripsRemoved: number }>;
 }
 
 class DemoRepository implements AppRepository {
@@ -83,6 +85,13 @@ class DemoRepository implements AppRepository {
 
   async listTripsForCron() {
     return structuredClone(getDemoState().trips);
+  }
+
+  async deleteAllTrips() {
+    const state = getDemoState();
+    const tripsRemoved = state.trips.length;
+    state.trips = [];
+    return { tripsRemoved };
   }
 }
 
@@ -239,6 +248,14 @@ class D1Repository implements AppRepository {
 
   async listTripsForCron() {
     return this.listTrips();
+  }
+
+  async deleteAllTrips() {
+    const trips = await this.listTrips();
+    const tripsRemoved = trips.length;
+    await this.query("DELETE FROM member_locations");
+    await this.query("DELETE FROM trip_documents");
+    return { tripsRemoved };
   }
 
   private async query<T>(

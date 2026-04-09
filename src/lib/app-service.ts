@@ -5,8 +5,10 @@ import { getSessionUser, hashToken } from "@/lib/auth";
 import { appEnv } from "@/lib/env";
 import { sendMail } from "@/lib/mailer";
 import { generateTripDocument, replanTripDocument } from "@/lib/planner";
+import { clearPackingListMemory } from "@/lib/packing-list-memory";
 import { getRepository } from "@/lib/repository";
 import type {
+  AppBootstrap,
   CreateTripInput,
   InviteMemberInput,
   SessionUser,
@@ -18,9 +20,31 @@ import type {
 } from "@/lib/types";
 import { createAvatarText, createId } from "@/lib/utils";
 
-export async function getHomeBootstrap() {
+export async function getHomeBootstrap(): Promise<AppBootstrap> {
   const currentUser = await getSessionUser();
-  return getRepository().getBootstrap(currentUser);
+  try {
+    return await getRepository().getBootstrap(currentUser);
+  } catch (error) {
+    console.error(
+      "getHomeBootstrap failed (often D1/network/keys); using empty trips. Check CLOUDFLARE_* / D1_PROXY_* in .env.local",
+      error,
+    );
+    return {
+      trips: [],
+      featuredTripId: undefined,
+      currentUser: currentUser ?? getRepositoryFallbackUser(),
+      unreadCount: 0,
+      dataSource: "demo",
+    };
+  }
+}
+
+/** 清空全部行程数据（D1 上为物理删除），并清空装备清单内存缓存。需通过受保护 API 调用。 */
+export async function purgeAllTripsData() {
+  const repository = getRepository();
+  const { tripsRemoved } = await repository.deleteAllTrips();
+  clearPackingListMemory();
+  return { tripsRemoved, storage: repository.mode };
 }
 
 export async function getTripWithViewer(tripId: string) {

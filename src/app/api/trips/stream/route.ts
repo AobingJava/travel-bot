@@ -42,7 +42,6 @@ export async function POST(request: NextRequest) {
         };
 
         try {
-          // 发送开始事件
           controller.enqueue(
             encodeSSE({
               type: "start",
@@ -52,11 +51,11 @@ export async function POST(request: NextRequest) {
 
           const repository = getRepository();
 
-          // 第一阶段：只生成装备清单
           sendProgress("packing", "正在整理装备清单...");
-          const packingList = await generatePackingListOnly(payload);
+          // 仍对大模型使用流式 HTTP 连接；不向浏览器推送原始 JSON 片段
+          const noopStream = () => {};
+          const packingList = await generatePackingListOnly(payload, noopStream);
 
-          // 发送 packingList 完成事件
           controller.enqueue(
             encodeSSE({
               type: "packing_complete",
@@ -65,17 +64,13 @@ export async function POST(request: NextRequest) {
             })
           );
 
-          // 第二阶段：生成完整的行程（任务、路线等）
-          sendProgress("analyzing", "正在分析目的地特色与旅行主题...");
-          sendProgress("tasks", "正在生成行前准备清单...");
-          sendProgress("route", "正在规划最佳游览路线...");
-
           const trip = await generateTripDocument(
             payload,
             currentUser,
             (step) => {
               sendProgress(step);
             },
+            noopStream,
           );
 
           // 更新 packingList 到 trip
@@ -107,9 +102,10 @@ export async function POST(request: NextRequest) {
 
     return new Response(stream, {
       headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
       },
     });
   } catch (error) {

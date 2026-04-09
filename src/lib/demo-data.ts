@@ -33,8 +33,8 @@ export function getDemoBootstrap(currentUser: SessionUser | null): AppBootstrap 
     .filter((notice) => !notice.readAt).length;
 
   return {
-    trips: [],
-    featuredTripId: undefined,
+    trips: structuredClone(state.trips),
+    featuredTripId: state.trips[0]?.id,
     currentUser: currentUser ?? demoUser,
     unreadCount,
     dataSource: "demo",

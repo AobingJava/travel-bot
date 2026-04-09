@@ -137,6 +137,56 @@ export function extractJsonObject(raw: string) {
   throw new Error("Model response did not contain valid JSON.");
 }
 
+function tryJsonParse(value: string): unknown | null {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+/** 尽量从模型原文中解析出 JSON（整段、代码块、截取首尾花括号/方括号），失败时抛出中文错误 */
+export function parseLooseModelJson(raw: string): unknown {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error("模型返回为空，请重试。");
+  }
+
+  const direct = tryJsonParse(trimmed);
+  if (direct !== null) {
+    return direct;
+  }
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = (fenced?.[1] ?? trimmed).trim();
+  const fromFence = tryJsonParse(candidate);
+  if (fromFence !== null) {
+    return fromFence;
+  }
+
+  const objStart = candidate.indexOf("{");
+  const objEnd = candidate.lastIndexOf("}");
+  if (objStart >= 0 && objEnd > objStart) {
+    const sliced = tryJsonParse(candidate.slice(objStart, objEnd + 1));
+    if (sliced !== null) {
+      return sliced;
+    }
+  }
+
+  const arrStart = candidate.indexOf("[");
+  const arrEnd = candidate.lastIndexOf("]");
+  if (arrStart >= 0 && arrEnd > arrStart) {
+    const sliced = tryJsonParse(candidate.slice(arrStart, arrEnd + 1));
+    if (sliced !== null) {
+      return sliced;
+    }
+  }
+
+  throw new Error(
+    "模型返回的内容无法解析为合法 JSON（可能混入了说明文字或格式错误），请重试。",
+  );
+}
+
 export function getTaskStatusLabel(status: TaskStatus) {
   return status === "done" ? "已完成" : "待处理";
 }

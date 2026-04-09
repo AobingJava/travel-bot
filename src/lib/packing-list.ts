@@ -1,4 +1,4 @@
-import type { PackingListItem, PackingCategory, ThemeKey } from "@/lib/types";
+import type { PackingListItem, PackingCategory, PackingSubItem, ThemeKey } from "@/lib/types";
 import { createId } from "./utils";
 
 // 通用基础物品（所有旅行都需要）
@@ -116,11 +116,11 @@ const weatherItems: Record<string, Omit<PackingListItem, "id">[]> = {
 // 根据活动类型添加的装备
 const activityItems: Record<string, Omit<PackingListItem, "id">[]> = {
   skiing: [
-    { name: "滑雪服", category: "clothing" },
-    { name: "滑雪镜", category: "clothing" },
-    { name: "滑雪手套", category: "clothing" },
-    { name: "护膝护腕", category: "clothing" },
-    { name: "滑雪袜", category: "clothing" },
+    { name: "滑雪服", category: "gear" },
+    { name: "滑雪镜", category: "gear" },
+    { name: "滑雪手套", category: "gear" },
+    { name: "护膝护腕", category: "gear" },
+    { name: "滑雪袜", category: "gear" },
     { name: "保暖内衣", category: "clothing" },
   ],
   running: [
@@ -164,7 +164,172 @@ const categoryLabels: Record<PackingCategory, string> = {
   toiletries: "个护健康",
   documents: "证件财务",
   weather: "天气用品",
+  gear: "运动装备",
 };
+
+const VALID_PACKING_CATEGORIES: PackingCategory[] = [
+  "core",
+  "documents",
+  "clothing",
+  "electronics",
+  "toiletries",
+  "weather",
+  "gear",
+];
+
+/** 模型漏写 category 或写成非法值时，按名称推断大类（与参考稿「核心必备 / 衣物 / 数码 / 个护」等对齐） */
+export function inferPackingCategoryFromText(text: string): PackingCategory {
+  const t = text.trim();
+  if (!t) return "core";
+  if (/滑雪|雪镜|雪板|雪鞋|护脸|单板|双板|固定器|雪杖|潜水镜|脚蹼|面镜|呼吸管|浮潜镜/i.test(t)) {
+    return "gear";
+  }
+  if (/身份证|护照|签证|通行证|驾照|证件|门票|机票|行程单|保单|保险单|银行卡|信用卡|现金|钱包|票据/i.test(t)) {
+    return "documents";
+  }
+  if (/手机|充电|充电宝|耳机|相机|存储卡|转换插|数据线|平板|电脑|电子|电池|自拍杆|头灯|手电筒/i.test(t)) {
+    return "electronics";
+  }
+  if (/牙|洗漱|护肤|化妆|防晒|洗发|沐浴|毛巾|药品|药|创口|创可贴|驱蚊|湿巾|纸巾|润唇|分装|急救包/i.test(t)) {
+    return "toiletries";
+  }
+  if (/雨伞|雨具|雨衣|防水鞋|防水包|暖宝宝|羽绒|遮阳|冰袖|太阳镜|墨镜/i.test(t)) {
+    return "weather";
+  }
+  if (/衣|裤|鞋|袜|帽|外套|睡衣|拖鞋|内衣|滑雪服|抓绒|速干|冲锋|羊毛|围巾|手套|泳装|泳衣/i.test(t)) {
+    return "clothing";
+  }
+  return "core";
+}
+
+export function isGenericPackGroupName(name: string): boolean {
+  const t = name.trim();
+  if (t.length < 2) return true;
+  return /^(装备分组|未命名分组|未命名|分组|物品)$/u.test(t);
+}
+
+function mapPackingCategory(raw: unknown, itemName?: string): PackingCategory {
+  if (typeof raw === "string" && VALID_PACKING_CATEGORIES.includes(raw as PackingCategory)) {
+    return raw as PackingCategory;
+  }
+  if (itemName?.trim()) {
+    return inferPackingCategoryFromText(itemName);
+  }
+  return "core";
+}
+
+function enrichSubItemQuantity(sub: PackingSubItem, tripDays: number): PackingSubItem {
+  const n = sub.name;
+  if (!n.trim()) return sub;
+  const lower = n.toLowerCase();
+  const disposable =
+    lower.includes("一次性") && (lower.includes("内裤") || lower.includes("内衣"));
+  const underwearPack =
+    (lower.includes("内裤") || lower.includes("内衣")) && !lower.includes("洗衣");
+  const socks = lower.includes("袜") && !lower.includes("滑雪袜");
+  if (disposable || (underwearPack && sub.quantity == null)) {
+    const q = tripDays * 2;
+    return {
+      ...sub,
+      quantity: sub.quantity ?? q,
+      quantityNote: sub.quantityNote ?? `按 ${tripDays} 天约 ${q} 件`,
+    };
+  }
+  if (socks && sub.quantity == null) {
+    const q = Math.max(tripDays + 1, 2);
+    return {
+      ...sub,
+      quantity: q,
+      quantityNote: sub.quantityNote ?? `约 ${q} 双（${tripDays} 天）`,
+    };
+  }
+  if ((n.includes("换洗衣物") || n.includes("外衣") || n.includes("睡衣")) && sub.quantity == null) {
+    return {
+      ...sub,
+      quantity: tripDays,
+      quantityNote: sub.quantityNote ?? `${tripDays} 套（按行程天数）`,
+    };
+  }
+  return sub;
+}
+
+function normalizeSubItem(raw: unknown, tripDays: number): PackingSubItem {
+  if (typeof raw === "string") {
+    return enrichSubItemQuantity(
+      { id: createId("pack-sub"), name: raw.trim() || "物品", checked: false },
+      tripDays,
+    );
+  }
+  if (!raw || typeof raw !== "object") {
+    return { id: createId("pack-sub"), name: "物品", checked: false };
+  }
+  const o = raw as Record<string, unknown>;
+  const name = typeof o.name === "string" ? o.name : "物品";
+  const id = typeof o.id === "string" ? o.id : createId("pack-sub");
+  const quantity = typeof o.quantity === "number" ? o.quantity : undefined;
+  const quantityNote = typeof o.quantityNote === "string" ? o.quantityNote : undefined;
+  return enrichSubItemQuantity(
+    {
+      id,
+      name,
+      checked: Boolean(o.checked),
+      quantity,
+      quantityNote,
+    },
+    tripDays,
+  );
+}
+
+/**
+ * 将智谱 / 模型返回的装备 JSON 规范为前端结构，补全 id、分类与子项数量提示。
+ */
+export function normalizePackingListFromApi(raw: unknown[] | undefined, tripDays: number): PackingListItem[] {
+  if (!raw?.length) return [];
+  const days = tripDays > 0 ? tripDays : 1;
+
+  return raw.map((entry, i) => {
+    if (typeof entry === "string") {
+      const label = entry.trim() || "物品";
+      return {
+        id: createId("packing"),
+        name: label,
+        category: inferPackingCategoryFromText(label),
+        checked: false,
+      };
+    }
+    if (!entry || typeof entry !== "object") {
+      return {
+        id: createId("packing"),
+        name: "未命名分组",
+        category: "core",
+        checked: false,
+      };
+    }
+    const o = entry as Record<string, unknown>;
+    const id = typeof o.id === "string" ? o.id : createId("packing");
+    const name = typeof o.name === "string" ? o.name : "装备分组";
+    let category = mapPackingCategory(o.category, name);
+    const subItems = Array.isArray(o.subItems)
+      ? o.subItems.map((s) => normalizeSubItem(s, days))
+      : undefined;
+    // 分组标题（如 👉衣裤篇）常为 core，按子项再收敛大类
+    if (category === "core" && subItems?.length) {
+      const first = subItems[0]?.name ?? "";
+      const inferred = inferPackingCategoryFromText(first);
+      if (inferred !== "core") {
+        category = inferred;
+      }
+    }
+    return {
+      id,
+      name,
+      category,
+      checked: Boolean(o.checked),
+      weatherDependent: Boolean(o.weatherDependent),
+      subItems: subItems?.length ? subItems : undefined,
+    };
+  });
+}
 
 export function generatePackingList({
   themes,
@@ -262,7 +427,15 @@ export function generatePackingList({
   }
 
   // 6. 按分类排序
-  const categoryOrder: PackingCategory[] = ["core", "documents", "clothing", "electronics", "toiletries", "weather"];
+  const categoryOrder: PackingCategory[] = [
+    "core",
+    "documents",
+    "clothing",
+    "electronics",
+    "toiletries",
+    "weather",
+    "gear",
+  ];
   items.sort((a, b) => categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category));
 
   return items;
@@ -278,8 +451,47 @@ export function getPackingCategoryIcon(category: PackingCategory): string {
     clothing: "checkroom",
     electronics: "power",
     toiletries: "medication",
-    documents: "description",
+    documents: "badge",
     weather: "umbrella",
+    gear: "downhill_skiing",
   };
   return icons[category] || "inventory_2";
+}
+
+/** 参考稿风格：大类标题区圆形图标的背景/文字色 */
+export function getPackingCategoryCardTone(category: PackingCategory): {
+  circle: string;
+  icon: string;
+} {
+  const tones: Record<PackingCategory, { circle: string; icon: string }> = {
+    core: {
+      circle: "bg-primary-container",
+      icon: "text-on-primary",
+    },
+    documents: {
+      circle: "bg-primary-container",
+      icon: "text-on-primary",
+    },
+    clothing: {
+      circle: "bg-secondary-container",
+      icon: "text-on-secondary-container",
+    },
+    electronics: {
+      circle: "bg-tertiary-container",
+      icon: "text-on-tertiary-container",
+    },
+    toiletries: {
+      circle: "bg-surface-container-highest",
+      icon: "text-on-surface",
+    },
+    weather: {
+      circle: "bg-surface-container-high",
+      icon: "text-on-surface",
+    },
+    gear: {
+      circle: "bg-secondary-container",
+      icon: "text-on-secondary-container",
+    },
+  };
+  return tones[category] ?? tones.core;
 }

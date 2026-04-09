@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTripWithViewer } from "@/lib/app-service";
+import { getPackingListMemoryStore } from "@/lib/packing-list-memory";
 import type { PackingListItem } from "@/lib/types";
-
-// 使用内存存储装备清单（生产环境应该使用数据库）
-const packingLists = new Map<string, PackingListItem[]>();
 
 export async function GET(
   request: NextRequest,
@@ -18,7 +16,7 @@ export async function GET(
     }
 
     // 优先使用存储的装备清单，否则使用 trip 中的
-    const storedList = packingLists.get(tripId);
+    const storedList = getPackingListMemoryStore().get(tripId);
     if (storedList) {
       return NextResponse.json({ packingList: storedList });
     }
@@ -50,7 +48,7 @@ export async function POST(
     }
 
     // 存储到内存中
-    packingLists.set(tripId, packingList);
+    getPackingListMemoryStore().set(tripId, packingList);
 
     return NextResponse.json({ success: true, packingList });
   } catch (error) {
@@ -78,7 +76,7 @@ export async function PATCH(
       return NextResponse.json({ error: "invalid data" }, { status: 400 });
     }
 
-    let packingList = packingLists.get(tripId) || trip.packingList || [];
+    let packingList = getPackingListMemoryStore().get(tripId) || trip.packingList || [];
 
     const updatedList = packingList.map((item) => {
       if (typeof item === "string" || item.id !== itemId) {
@@ -99,7 +97,7 @@ export async function PATCH(
       return { ...item, checked };
     }) as PackingListItem[];
 
-    packingLists.set(tripId, updatedList);
+    getPackingListMemoryStore().set(tripId, updatedList);
 
     return NextResponse.json({ success: true, packingList: updatedList });
   } catch (error) {

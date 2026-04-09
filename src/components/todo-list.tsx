@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { TripDocument, TripTask } from "@/lib/types";
 import { InviteMemberForm } from "@/components/invite-member-form";
+import { TripPackingChecklist } from "@/components/trip-packing-checklist";
 import { getTaskLabelClass, getTaskLabelText } from "@/lib/utils";
 
 export function TodoList({ trip, canInvite }: { trip: TripDocument; canInvite: boolean }) {
@@ -41,6 +42,15 @@ export function TodoList({ trip, canInvite }: { trip: TripDocument; canInvite: b
           <InviteMemberForm trip={trip} />
         </article>
       )}
+
+      {trip.packingList && trip.packingList.length > 0 ? (
+        <TripPackingChecklist
+          tripId={trip.id}
+          packingList={trip.packingList}
+          startDate={trip.startDate}
+          endDate={trip.endDate}
+        />
+      ) : null}
 
       {/* 代办清单 */}
       {tasks.length > 0 && (

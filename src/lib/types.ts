@@ -128,9 +128,20 @@ export interface PackingSubItem {
   id: string;
   name: string;
   checked?: boolean;
+  /** 建议携带数量（如一次性内裤件数） */
+  quantity?: number;
+  /** 数量说明，如「按 7 天行程」 */
+  quantityNote?: string;
 }
 
-export type PackingCategory = "core" | "clothing" | "electronics" | "toiletries" | "documents" | "weather";
+export type PackingCategory =
+  | "core"
+  | "clothing"
+  | "electronics"
+  | "toiletries"
+  | "documents"
+  | "weather"
+  | "gear";
 
 export interface TripDocument {
   id: string;

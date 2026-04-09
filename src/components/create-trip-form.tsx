@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { tripThemes } from "@/lib/types";
@@ -119,7 +119,7 @@ export function CreateTripForm() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(defaultState);
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [streamedThemes, setStreamedThemes] = useState<string[]>([]);
   const [showThemes, setShowThemes] = useState(false);
@@ -220,10 +220,157 @@ export function CreateTripForm() {
     }
   }
 
+  async function runCreateTripStream(formData: FormData) {
+    const destination = formData.get("destination") as string;
+    const startDate = formData.get("startDate") as string;
+    const endDate = formData.get("endDate") as string;
+
+    setIsGenerating(true);
+    setStreamedOutput([]);
+
+    const pushStatus = (message: string) => {
+      setStreamedOutput((prev) => [...prev, message]);
+    };
+
+    let streamError: string | null = null;
+    let tripId = "";
+
+    try {
+      const response = await fetch("/api/trips/stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          destination,
+          startDate,
+          endDate,
+          themes: form.themes,
+          customTags: form.customTags,
+          name: `${destination} ${tripThemes.filter((theme) => form.themes.includes(theme.key)).map((theme) => theme.label).join("、")} 之旅`,
+        }),
+      });
+
+      if (!response.ok) {
+        let msg = "生成失败，请稍后再试。";
+        try {
+          const errBody = (await response.json()) as { error?: string };
+          msg = errBody.error ?? msg;
+        } catch {
+          /* 非 JSON 错误体 */
+        }
+        setError(msg);
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        setError("浏览器不支持流式读取");
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let sseBuffer = "";
+
+      const applyEvent = (raw: unknown) => {
+        if (!raw || typeof raw !== "object") {
+          return;
+        }
+        const data = raw as {
+          type: string;
+          message?: string;
+          tripId?: string;
+          phase?: string;
+          delta?: string;
+        };
+
+        switch (data.type) {
+          case "start":
+            if (data.message) {
+              pushStatus(data.message);
+            }
+            break;
+          case "step":
+            if (data.message) {
+              pushStatus(data.message);
+            }
+            break;
+          case "packing_complete":
+            if (data.message) {
+              pushStatus(data.message);
+            }
+            break;
+          case "complete":
+            if (data.tripId) {
+              tripId = data.tripId;
+            }
+            if (data.message) {
+              pushStatus(data.message);
+            }
+            break;
+          case "error":
+            streamError = data.message ?? "生成失败";
+            setError(streamError);
+            break;
+          default:
+            break;
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        sseBuffer += decoder.decode(value, { stream: true });
+        let boundary = sseBuffer.indexOf("\n\n");
+        while (boundary >= 0) {
+          const rawBlock = sseBuffer.slice(0, boundary);
+          sseBuffer = sseBuffer.slice(boundary + 2);
+          for (const line of rawBlock.split("\n")) {
+            const trimmed = line.trim();
+            if (!trimmed.toLowerCase().startsWith("data:")) {
+              continue;
+            }
+            const jsonStr = trimmed.slice("data:".length).trim();
+            try {
+              applyEvent(JSON.parse(jsonStr));
+            } catch {
+              /* 半包或损坏行，跳过 */
+            }
+          }
+          boundary = sseBuffer.indexOf("\n\n");
+        }
+      }
+
+      const tail = sseBuffer.trim();
+      if (tail) {
+        for (const line of tail.split("\n")) {
+          const trimmed = line.trim();
+          if (!trimmed.toLowerCase().startsWith("data:")) {
+            continue;
+          }
+          try {
+            applyEvent(JSON.parse(trimmed.slice("data:".length).trim()));
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+
+      if (!streamError && tripId) {
+        router.push(`/trips/${tripId}/planning`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "生成失败，请稍后再试。");
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
   function handleSubmit(formData: FormData) {
     setError(null);
 
-    // 检查是否至少选择了一个主题或标签
     const shouldValidate = showThemes && streamedThemes.length > 0;
 
     if (shouldValidate && form.themes.length === 0 && form.customTags.length === 0) {
@@ -231,91 +378,12 @@ export function CreateTripForm() {
       return;
     }
 
-    startTransition(async () => {
-      const destination = formData.get("destination") as string;
-      const startDate = formData.get("startDate") as string;
-      const endDate = formData.get("endDate") as string;
-
-      try {
-        // 使用流式 API
-        const response = await fetch("/api/trips/stream", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            destination,
-            startDate,
-            endDate,
-            themes: form.themes,
-            customTags: form.customTags,
-            name: `${destination} ${tripThemes.filter((theme) => form.themes.includes(theme.key)).map((theme) => theme.label).join("、")} 之旅`,
-          }),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          setError(error.error ?? "生成失败，请稍后再试。");
-          return;
-        }
-
-        // 读取流式响应
-        const reader = response.body?.getReader();
-        if (!reader) {
-          setError("浏览器不支持流式读取");
-          return;
-        }
-
-        const decoder = new TextDecoder();
-        let tripId = "";
-        let packingList = null;
-        setStreamedOutput([]);
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          // 解析 SSE 格式的消息
-          const lines = chunk.split("\n");
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = JSON.parse(line.slice(6));
-              if (data.type === "complete") {
-                tripId = data.tripId;
-              } else if (data.type === "packing_complete") {
-                // 装备清单已生成，先保存
-                packingList = data.packingList;
-                // 添加到流式输出
-                setStreamedOutput((prev) => [...prev, "装备清单已生成"]);
-              } else if (data.type === "step") {
-                // 流式输出每一步的进展
-                setStreamedOutput((prev) => [...prev, data.message]);
-              } else if (data.type === "error") {
-                setError(data.message);
-                return;
-              }
-            }
-          }
-        }
-
-        if (tripId) {
-          // 如果有装备清单，先存储到临时状态（可选）
-          if (packingList) {
-            console.log("Packing list generated:", packingList);
-          }
-          // 跳转到规划动态页面
-          router.push(`/trips/${tripId}/planning`);
-        }
-      } catch (error) {
-        setError(error instanceof Error ? error.message : "生成失败，请稍后再试。");
-      }
-    });
+    void runCreateTripStream(formData);
   }
 
   return (
     <form action={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 items-end gap-6 md:grid-cols-4">
+      <div className="grid grid-cols-1 items-end gap-6 md:grid-cols-3">
         <label className="space-y-2 md:col-span-1">
           <span className="block px-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
             目的地
@@ -370,27 +438,6 @@ export function CreateTripForm() {
             />
           </div>
         </label>
-
-        <div className="md:col-span-1">
-          <button
-            type="submit"
-            disabled={isPending}
-            className="signature-gradient flex w-full items-center justify-center gap-3 rounded-xl py-4 text-lg font-bold text-white shadow-[0_10px_30px_rgba(160,59,0,0.3)] transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isPending ? (
-              <svg className="h-6 w-6 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-            ) : (
-              <>
-                GO
-                {" "}
-                <span className="material-symbols-outlined">arrow_forward</span>
-              </>
-            )}
-          </button>
-        </div>
       </div>
 
       {/* 热门推荐标签 - 输入目的地后才显示 */}
@@ -527,36 +574,66 @@ export function CreateTripForm() {
             ))}
           </div>
           <p className="text-[11px] text-slate-400">
-            已选择：{selectedLabel || form.customTags.length > 0 ? form.customTags.join(", ") : "未选择"}
+            已选择：
+            {selectedLabel
+              ? `${selectedLabel}${form.customTags.length > 0 ? `、${form.customTags.join("、")}` : ""}`
+              : form.customTags.length > 0
+                ? form.customTags.join("、")
+                : "未选择"}
           </p>
         </div>
       )}
 
-      {/* 流式输出进度 - 在按钮下方显示 */}
-      {streamedOutput.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-1.5">
-            {streamedOutput.map((message, index) => (
-              <span
-                key={index}
-                className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] font-medium text-emerald-700"
-                style={{ animation: 'fadeIn 0.3s ease-in-out both', animationDelay: `${index * 100}ms` }}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                {message}
+      <div className="pt-1">
+        <button
+          type="submit"
+          disabled={isGenerating}
+          className="flex min-h-14 w-full items-center justify-center gap-3 whitespace-nowrap rounded-xl bg-[linear-gradient(135deg,#a03b00_0%,#c94c00_100%)] px-4 py-4 font-headline text-lg font-bold text-white shadow-[0_10px_30px_rgba(160,59,0,0.3)] transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isGenerating ? (
+            <svg className="h-7 w-7 shrink-0 animate-spin text-white" fill="none" viewBox="0 0 24 24" aria-hidden>
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+          ) : (
+            <>
+              <span className="shrink-0 text-lg font-extrabold leading-none tracking-tight">GO</span>
+              <span className="material-symbols-outlined shrink-0 text-[22px] leading-none text-white" aria-hidden>
+                arrow_forward
               </span>
-            ))}
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </button>
+      </div>
 
       {error ? (
         <p className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-700">
           {error}
         </p>
       ) : null}
+
+      {(isGenerating || streamedOutput.length > 0) && (
+        <div className="space-y-3 rounded-xl border border-outline-variant/20 bg-surface-container-low/50 p-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">生成进度</p>
+          {streamedOutput.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {streamedOutput.map((message, index) => (
+                <span
+                  key={`${message}-${index}`}
+                  className="inline-flex max-w-full items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] font-medium text-emerald-800"
+                >
+                  <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="break-words">{message}</span>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-on-surface-variant/70">准备中…</p>
+          )}
+        </div>
+      )}
     </form>
   );
 }
