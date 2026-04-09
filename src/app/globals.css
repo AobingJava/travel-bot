@@ -1,11 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f3efe7;
-  --foreground: #0f172a;
+  --background: #fff4f3;
+  --foreground: #4e2120;
   --color-mint-100: #dff5eb;
   --color-mint-700: #15805c;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --primary: #a63400;
+  --primary-fixed: #ff7948;
+  --primary-container: #ff7948;
+  --on-primary: #ffefeb;
+  --secondary: #3d57a7;
+  --secondary-container: #c5d0ff;
+  --on-secondary-container: #274292;
+  --tertiary: #6c5a00;
+  --tertiary-fixed: #ffd709;
+  --surface: #fff4f3;
+  --surface-container: #ffe1e0;
+  --surface-container-low: #ffedeb;
+  --surface-container-high: #ffdad8;
+  --on-surface: #4e2120;
+  --on-surface-variant: #834c4b;
+  --outline-variant: #e09c99;
 }
 
 @theme inline {
@@ -13,8 +29,25 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-body);
   --font-mono: var(--font-mono);
+  --font-headline: var(--font-headline);
   --color-mint-100: var(--color-mint-100);
   --color-mint-700: var(--color-mint-700);
+  --color-primary: var(--primary);
+  --color-primary-fixed: var(--primary-fixed);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary: var(--on-primary);
+  --color-secondary: var(--secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-fixed: var(--tertiary-fixed);
+  --color-surface: var(--surface);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-outline-variant: var(--outline-variant);
 }
 
 * {
@@ -33,10 +66,6 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
-  background-image:
-    radial-gradient(circle at 10% 20%, rgba(110, 231, 183, 0.18), transparent 22%),
-    radial-gradient(circle at 88% 14%, rgba(15, 23, 42, 0.08), transparent 28%),
-    linear-gradient(180deg, #f7f3eb 0%, #eef3ef 100%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Noto_Sans_SC } from "next/font/google";
+import { IBM_Plex_Mono, Plus_Jakarta_Sans, Manrope } from "next/font/google";
 import "./globals.css";
 
-const bodyFont = Noto_Sans_SC({
+const bodyFont = Manrope({
   variable: "--font-body",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const monoFont = IBM_Plex_Mono({
@@ -14,9 +14,15 @@ const monoFont = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
+const headlineFont = Plus_Jakarta_Sans({
+  variable: "--font-headline",
+  subsets: ["latin"],
+  weight: ["400", "700", "800"],
+});
+
 export const metadata: Metadata = {
-  title: "Wander Travel Planner",
-  description: "移动端优先的旅行规划与协作网站。",
+  title: "PlanGO - 开启你的旅程",
+  description: "你的全能行程搭子，开启下一段精彩冒险。飞机可不等人，即刻出发去山野避世。",
 };
 
 export default function RootLayout({

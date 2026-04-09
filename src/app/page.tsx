@@ -18,18 +18,18 @@ export default async function HomePage() {
   return (
     <main className="mx-auto flex w-full max-w-[430px] flex-col gap-4 px-4 pt-6 pb-28 sm:pt-10">
       {/* 合并的 Header + Hero 卡片 */}
-      <section className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/80 p-5 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+      <section className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-[0px_20px_40px_rgba(78,33,32,0.08)]">
         {/* 顶部 Header */}
         <div className="flex items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-full ring-2 ring-orange-700 overflow-hidden">
+            <div className="w-9 h-9 rounded-full ring-2 ring-primary-container overflow-hidden">
               <img
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMKvbpNKJG8j1JmkB4GxJHVe-ax-wvSx3mtudIp3uZwCNJA_lzrsUT10qujZVcJ46kAYpYhuB2hYfdAmPHRsQhw4QDJ2z03UbcaJ_UqwD_Scb6OHuQw6sBe4eqcLCC_OifVCj-KE8zOVR99App8_2FCCJi0-dHo1lMO5XK_-BVOplltb11yxg0LMBkhJEVykzrIK1Bfr3_PjJ9zP-W-dSn7bZFhBYDSUcQHnVS8QVrWkVukXK9cFS_jJiJybWRyJVtk_6lAXI6Jd2h"
                 alt="用户头像"
                 className="w-full h-full object-cover"
               />
             </div>
-            <h1 className="text-xl font-black text-orange-700 italic font-['Plus_Jakarta_Sans'] tracking-tight">
+            <h1 className="text-2xl font-black text-primary italic font-headline tracking-tight">
               PlanGO
             </h1>
           </div>
@@ -47,7 +47,7 @@ export default async function HomePage() {
 
       {/* 进行中的旅行 */}
       {ongoingTrips.length > 0 && (
-        <section className="rounded-3xl border border-white/70 bg-white/80 p-4 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+        <section className="rounded-3xl bg-white p-4 shadow-[0px_20px_40px_rgba(78,33,32,0.04)]">
           <p className="text-xs font-medium text-slate-400 mb-3">进行中的旅行</p>
           <div className="space-y-2">
             {ongoingTrips.map((trip) => (
@@ -59,7 +59,7 @@ export default async function HomePage() {
 
       {/* 已完成的旅行 */}
       {completedTrips.length > 0 && (
-        <section className="rounded-3xl border border-white/70 bg-white/80 p-4 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+        <section className="rounded-3xl bg-white p-4 shadow-[0px_20px_40px_rgba(78,33,32,0.04)]">
           <p className="text-xs font-medium text-slate-400 mb-3">已完成的旅行</p>
           <div className="space-y-2">
             {completedTrips.map((trip) => (
