@@ -107,25 +107,21 @@ export function TodoList({ trip, canInvite }: { trip: TripDocument; canInvite: b
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="space-y-0.5">
+                        <p className="text-[14px] font-semibold leading-snug text-slate-950">
+                          {task.title}
+                        </p>
+                        {task.notes && (
+                          <p className="text-[12px] leading-5 text-slate-500 mt-1.5">{task.notes}</p>
+                        )}
+                      </div>
                       <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${getTaskLabelClass(task.label)}`}
+                        className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${getTaskLabelClass(task.label)}`}
                       >
                         {getTaskLabelText(task.label)}
                       </span>
                     </div>
-                    <p
-                      className={`text-[14px] font-semibold leading-snug ${
-                        task.status === "done"
-                          ? "text-slate-400 line-through"
-                          : "text-slate-950"
-                      }`}
-                    >
-                      {task.title}
-                    </p>
-                    {task.notes && (
-                      <p className="text-[12px] leading-5 text-slate-500 mt-1.5">{task.notes}</p>
-                    )}
                   </div>
                 </div>
               </div>
