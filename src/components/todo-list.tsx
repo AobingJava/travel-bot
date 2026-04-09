@@ -73,7 +73,7 @@ export function TodoList({ trip, canInvite }: { trip: TripDocument; canInvite: b
       {preTasks.length > 0 && (
         <article className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium text-slate-400">代办清单</p>
+            <p className="text-xs font-medium text-slate-400">待办清单</p>
             <span className="text-[11px] text-slate-500">
               {preTasks.filter((t) => t.status === "done").length}/{preTasks.length} 已完成
             </span>
@@ -130,25 +130,6 @@ export function TodoList({ trip, canInvite }: { trip: TripDocument; canInvite: b
         </article>
       )}
 
-      {/* 装备清单 */}
-      {trip.packingList && trip.packingList.length > 0 && (
-        <article className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
-          <p className="text-xs font-medium text-slate-400 mb-3">装备清单</p>
-          <div className="grid grid-cols-2 gap-2">
-            {trip.packingList.slice(0, 6).map((item, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2"
-              >
-                <div className="h-4 w-4 rounded-full border-2 border-slate-300" />
-                <span className="text-[12px] font-medium text-slate-700">
-                  {typeof item === "string" ? item : item.name}
-                </span>
-              </div>
-            ))}
-          </div>
-        </article>
-      )}
     </section>
   );
 }
