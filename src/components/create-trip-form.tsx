@@ -289,7 +289,7 @@ export function CreateTripForm() {
       </div>
 
       {/* 热门推荐标签 - 输入目的地后才显示 */}
-      {showThemes && streamedThemes.some((tag) => tag.trim()) && (
+      {showThemes && streamedThemes.length > 0 && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-medium text-slate-600">热门推荐标签</span>
