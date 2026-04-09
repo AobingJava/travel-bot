@@ -4,7 +4,7 @@ import { MobileNav } from "@/components/mobile-nav";
 import { TaskBoard } from "@/components/task-board";
 import { TripHeader } from "@/components/trip-header";
 import { TripMembers } from "@/components/trip-members";
-import { TripOverview } from "@/components/trip-overview";
+import { TodoList } from "@/components/todo-list";
 import { MemoryView } from "@/components/memory-view";
 import { getTripWithViewer } from "@/lib/app-service";
 
@@ -29,7 +29,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
   }
 
   const viewParam = resolvedSearchParams.view;
-  const view = typeof viewParam === "string" ? viewParam : "tasks";
+  const view = typeof viewParam === "string" ? viewParam : "todos";
   const canInvite =
     (currentUser?.email?.toLowerCase() ?? "aihe@example.com") ===
     trip.ownerEmail.toLowerCase();
@@ -38,7 +38,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
     <main className="mx-auto flex w-full max-w-[430px] flex-col gap-4 px-4 pt-6 pb-28 sm:pt-10">
       <TripHeader trip={trip} currentUser={currentUser} />
 
-      {view === "overview" ? <TripOverview trip={trip} canInvite={canInvite} /> : null}
+      {view === "todos" ? <TodoList trip={trip} canInvite={canInvite} /> : null}
       {view === "tasks" ? (
         <TaskBoard tripId={trip.id} tasks={trip.tasks} banner={trip.banner} />
       ) : null}
