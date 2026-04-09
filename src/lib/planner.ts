@@ -301,13 +301,15 @@ async function generateWithModel(input: CreateTripInput): Promise<GeneratedTripP
       {
         role: "system",
         content:
-          "你是一个中文旅行规划助手。只输出合法 JSON，不要附加解释。请返回一个有吸引力的行程名称、3 个阶段的 TODO、每日建议、一个顶部 banner 和装备清单。行程名称应该结合目的地和主题特色，简洁有力（8-20 字）。任务数控制在 8-10 个，移动端易读。旅途中打卡任务（phase=during）至少给出 3 个，并尽量补齐 locationName、scheduledTime（HH:mm）、durationMinutes、travelMode、travelMinutes、routeHint，以及 lat/lng 坐标（十进制度数）。路线建议要像真实行程，时间连续、通勤合理、方便在移动端显示。装备清单需要按分类组织，包含以下类别：core（核心必备）、clothing（衣物）、electronics（数码电子）、toiletries（个护健康）、documents（证件文件）、weather（天气相关）。每个物品包含 id、name、category 字段，天气相关物品设置 weatherDependent: true。装备清单总共 12-18 个物品。",
+          "你是一个专业的中文旅行规划助手。请只输出合法 JSON，不要任何解释或额外文字。返回完整的旅行计划，包含：\n\n1. **行程名称**：结合目的地和主题特色，8-20 字\n2. **3 阶段任务**（8-12 个）：\n   - 行前准备（pre 阶段 3-4 个）：证件办理、机票酒店、物品准备、预约预订等\n   - 旅途打卡（during 阶段 3-4 个）：景点游览、美食体验、购物娱乐，必须包含具体景点名称、locationName、scheduledTime(HH:mm)、durationMinutes、travelMode、travelMinutes、routeHint，以及 lat/lng 坐标（十进制度数）\n   - 旅后总结（post 阶段 1-2 个）：照片整理、预算复盘等\n3. **每日建议**：每天的行程概要\n4. **顶部 banner**：行程亮点提示\n5. **装备清单**：按 6 类组织（core/clothing/electronics/toiletries/documents/weather），每类 2-4 个物品，共 12-18 个。天气相关物品设置 weatherDependent:true\n\n任务必须具体可执行，包含真实景点名称和合理的时间安排。",
       },
       {
         role: "user",
-        content: `请为这次旅行生成计划：目的地 ${input.destination}，日期 ${input.startDate} 到 ${input.endDate}，人数 ${input.travelerCount ?? 1}，主题 ${themeList}。请根据目的地的天气、季节和活动类型生成分类装备清单，特别注意：1) 雨季目的地要包含雨具 2) 海边要包含防晒用品 3) 城市购物要包含购物袋 4) 户外要包含防护用品。`,
+        content: `请为这次旅行生成完整计划：\n- 目的地：${input.destination}\n- 日期：${input.startDate} 到 ${input.endDate}\n- 人数：${input.travelerCount ?? 1}人\n- 主题：${themeList}\n\n要求：\n1. 旅途中任务必须包含具体景点名称和坐标，例如"富士山五合目"、"清水寺"等真实景点\n2. 行前准备任务要详细：证件/签证、机票酒店、交通卡、网络、保险、预约景点等\n3. 根据目的地天气和季节生成装备清单，雨季加雨具，海边加防晒，城市加购物袋\n4. 所有任务时间安排合理，符合真实旅行逻辑`,
       },
     ],
+    temperature: 0.7,
+    thinkingEnabled: false,
   });
 
   return parsePlanCompletion(raw, input);
@@ -1001,28 +1003,39 @@ function fallbackPlan(input: CreateTripInput): GeneratedTripPlan {
     },
     {
       id: createId("task"),
-      title: "把高优先级景点提前预约",
-      notes: `优先围绕 ${getThemeLabel(input.themes[0] as ThemeKey)} 主题安排最难抢的资源。`,
+      title: "购买旅行保险与准备常用药品",
+      notes: "确保保险覆盖行程期间，准备感冒药、肠胃药等常用药品。",
       phase: "pre",
       label: "suggestion",
       status: "open",
       sortOrder: 3,
       source: "ai",
     },
+    {
+      id: createId("task"),
+      title: "预约热门景点门票",
+      notes: `优先围绕 ${getThemeLabel(input.themes[0] as ThemeKey)} 主题安排最难抢的资源，提前在官网或旅游平台预约。`,
+      phase: "pre",
+      label: "suggestion",
+      status: "open",
+      sortOrder: 4,
+      source: "ai",
+    },
     ...dayTargets.map((date, index) => {
       const label = index === 1 ? "backup" : "suggestion";
+      const pin = fallbackPins[index] || fallbackPins[0];
 
       return {
         id: createId("task"),
         title:
           index === 0
-            ? `${input.destination} 抵达日轻量路线`
+            ? `游览${pin?.name || "市中心地标"}，适应当地节奏`
             : index === 1
-              ? "把户外体验放在天气更稳的上午"
-              : "留出一段弹性时间给购物或夜游",
+              ? `${pin?.name || "历史文化街区"}深度体验`
+              : `${pin?.name || "当地特色市场"}周边自由活动`,
         notes:
           index === 0
-            ? "第一天先适应节奏，避免把高强度任务塞满。"
+            ? "第一天先适应节奏，从地标景点开始，避免把高强度任务塞满。"
             : index === 1
               ? "如果午后天气转差，优先切室内备选。"
               : "行程后段更适合留白，给临场调整空间。",
@@ -1034,9 +1047,9 @@ function fallbackPlan(input: CreateTripInput): GeneratedTripPlan {
         dueDate: date,
         sortOrder: index + 1,
         source: "ai",
-        lat: fallbackPins[index]?.lat,
-        lng: fallbackPins[index]?.lng,
-        locationName: fallbackPins[index]?.name,
+        lat: pin?.lat,
+        lng: pin?.lng,
+        locationName: pin?.name,
         scheduledTime: fallbackTimes[index],
         durationMinutes: fallbackDurations[index],
         travelMode: fallbackTravelModes[index],
@@ -1221,31 +1234,218 @@ function enumerateDates(startDate: string, endDate: string) {
 }
 
 function getFallbackMapPins(destination: string) {
-  if (destination.includes("京都") && destination.includes("大阪")) {
+  // 日本目的地
+  if (destination.includes("日本") || destination.includes("东京")) {
     return [
-      { lat: 35.0116, lng: 135.7681, name: "京都站" },
-      { lat: 35.017, lng: 135.6713, name: "岚山竹林" },
-      { lat: 34.6687, lng: 135.5023, name: "道顿堀" },
-    ];
-  }
-
-  if (destination.includes("京都")) {
-    return [
-      { lat: 35.0116, lng: 135.7681, name: "京都站" },
-      { lat: 35.017, lng: 135.6713, name: "岚山竹林" },
-      { lat: 35.0394, lng: 135.7292, name: "金阁寺" },
+      { lat: 35.6895, lng: 139.6917, name: "浅草寺" },
+      { lat: 35.6762, lng: 139.6503, name: "涩谷 SKY" },
+      { lat: 35.6586, lng: 139.7454, name: "筑地市场" },
     ];
   }
 
   if (destination.includes("大阪")) {
     return [
-      { lat: 34.7025, lng: 135.4959, name: "梅田" },
+      { lat: 34.6941, lng: 135.5017, name: "大阪城公园" },
       { lat: 34.6687, lng: 135.5023, name: "道顿堀" },
-      { lat: 34.7055, lng: 135.4909, name: "中之岛" },
+      { lat: 34.6555, lng: 135.4324, name: "大阪海游馆" },
     ];
   }
 
-  return [];
+  if (destination.includes("京都")) {
+    return [
+      { lat: 34.9949, lng: 135.7851, name: "伏见稻荷大社" },
+      { lat: 35.017, lng: 135.6713, name: "岚山竹林" },
+      { lat: 35.0394, lng: 135.7292, name: "金阁寺" },
+    ];
+  }
+
+  // 韩国目的地
+  if (destination.includes("韩国") || destination.includes("首尔")) {
+    return [
+      { lat: 37.5755, lng: 126.9770, name: "景福宫" },
+      { lat: 37.5564, lng: 126.9822, name: "明洞" },
+      { lat: 37.5219, lng: 127.0411, name: "COEX 星空图书馆" },
+    ];
+  }
+
+  // 泰国目的地
+  if (destination.includes("泰国") || destination.includes("曼谷")) {
+    return [
+      { lat: 13.7507, lng: 100.4939, name: "大皇宫" },
+      { lat: 13.7245, lng: 100.5373, name: " ICONSIAM 购物中心" },
+      { lat: 13.7372, lng: 100.5223, name: "卧佛寺" },
+    ];
+  }
+
+  if (destination.includes("普吉岛")) {
+    return [
+      { lat: 7.8804, lng: 98.3923, name: "芭东海滩" },
+      { lat: 7.8238, lng: 98.3343, name: "查龙寺" },
+      { lat: 7.9517, lng: 98.3381, name: "普吉镇" },
+    ];
+  }
+
+  // 巴厘岛
+  if (destination.includes("巴厘岛")) {
+    return [
+      { lat: -8.5069, lng: 115.2625, name: "海神庙" },
+      { lat: -8.3439, lng: 115.2371, name: "乌布皇宫" },
+      { lat: -8.8290, lng: 115.1729, name: "情人崖" },
+    ];
+  }
+
+  // 新加坡
+  if (destination.includes("新加坡")) {
+    return [
+      { lat: 1.2834, lng: 103.8607, name: "滨海湾花园" },
+      { lat: 1.2495, lng: 103.8304, name: "圣淘沙" },
+      { lat: 1.2871, lng: 103.8552, name: "鱼尾狮公园" },
+    ];
+  }
+
+  // 马尔代夫
+  if (destination.includes("马尔代夫")) {
+    return [
+      { lat: 4.1755, lng: 73.5093, name: "马累市区" },
+      { lat: 4.1851, lng: 73.5402, name: "胡鲁马累海滩" },
+      { lat: 3.9167, lng: 73.4833, name: "浮潜体验" },
+    ];
+  }
+
+  // 澳大利亚
+  if (destination.includes("澳大利亚") || destination.includes("悉尼")) {
+    return [
+      { lat: -33.8568, lng: 151.2153, name: "悉尼歌剧院" },
+      { lat: -33.8523, lng: 151.2108, name: "海港大桥" },
+      { lat: -33.8737, lng: 151.2055, name: "达令港" },
+    ];
+  }
+
+  // 美国目的地
+  if (destination.includes("美国") || destination.includes("纽约")) {
+    return [
+      { lat: 40.7580, lng: -73.9855, name: "时代广场" },
+      { lat: 40.6892, lng: -74.0445, name: "自由女神像" },
+      { lat: 40.7794, lng: -73.9632, name: "中央公园" },
+    ];
+  }
+
+  if (destination.includes("洛杉矶")) {
+    return [
+      { lat: 34.1381, lng: -118.3534, name: "环球影城" },
+      { lat: 33.8121, lng: -118.3400, name: "圣莫尼卡海滩" },
+      { lat: 34.0928, lng: -118.3287, name: "好莱坞标志" },
+    ];
+  }
+
+  // 法国
+  if (destination.includes("法国") || destination.includes("巴黎")) {
+    return [
+      { lat: 48.8606, lng: 2.3376, name: "卢浮宫" },
+      { lat: 48.8584, lng: 2.2945, name: "埃菲尔铁塔" },
+      { lat: 48.8738, lng: 2.2950, name: "凯旋门" },
+    ];
+  }
+
+  // 意大利
+  if (destination.includes("意大利") || destination.includes("罗马")) {
+    return [
+      { lat: 41.8902, lng: 12.4922, name: "罗马斗兽场" },
+      { lat: 41.8986, lng: 12.4769, name: "许愿池" },
+      { lat: 41.9029, lng: 12.4534, name: "梵蒂冈" },
+    ];
+  }
+
+  // 英国
+  if (destination.includes("英国") || destination.includes("伦敦")) {
+    return [
+      { lat: 51.5074, lng: -0.1278, name: "大英博物馆" },
+      { lat: 51.5055, lng: -0.0754, name: "伦敦塔桥" },
+      { lat: 51.4936, lng: -0.1194, name: "白金汉宫" },
+    ];
+  }
+
+  // 瑞士
+  if (destination.includes("瑞士")) {
+    return [
+      { lat: 46.5715, lng: 6.6309, name: "日内瓦湖" },
+      { lat: 46.0528, lng: 7.7510, name: "马特洪峰" },
+      { lat: 46.8182, lng: 8.2275, name: "少女峰" },
+    ];
+  }
+
+  // 新西兰
+  if (destination.includes("新西兰")) {
+    return [
+      { lat: -36.8485, lng: 174.7633, name: "奥克兰天空塔" },
+      { lat: -45.0312, lng: 168.6626, name: "皇后镇" },
+      { lat: -39.0556, lng: 174.0752, name: "汤加里罗国家公园" },
+    ];
+  }
+
+  // 国内目的地
+  if (destination.includes("北京")) {
+    return [
+      { lat: 39.9042, lng: 116.4074, name: "故宫博物院" },
+      { lat: 40.4319, lng: 116.5704, name: "八达岭长城" },
+      { lat: 39.8839, lng: 116.4170, name: "天坛" },
+    ];
+  }
+
+  if (destination.includes("上海")) {
+    return [
+      { lat: 31.2304, lng: 121.4737, name: "外滩" },
+      { lat: 31.2359, lng: 121.5076, name: "陆家嘴" },
+      { lat: 31.2277, lng: 121.4852, name: "豫园" },
+    ];
+  }
+
+  if (destination.includes("西安")) {
+    return [
+      { lat: 34.3848, lng: 109.2734, name: "兵马俑" },
+      { lat: 34.2267, lng: 108.9455, name: "大雁塔" },
+      { lat: 34.2583, lng: 108.9497, name: "西安城墙" },
+    ];
+  }
+
+  if (destination.includes("成都")) {
+    return [
+      { lat: 30.5723, lng: 104.0665, name: "宽窄巷子" },
+      { lat: 30.5919, lng: 104.0679, name: "武侯祠" },
+      { lat: 30.5311, lng: 104.0678, name: "锦里" },
+    ];
+  }
+
+  if (destination.includes("重庆")) {
+    return [
+      { lat: 29.5647, lng: 106.5507, name: "洪崖洞" },
+      { lat: 29.5603, lng: 106.5743, name: "解放碑" },
+      { lat: 29.5267, lng: 106.6020, name: "南山一棵树" },
+    ];
+  }
+
+  if (destination.includes("杭州")) {
+    return [
+      { lat: 30.2591, lng: 120.1498, name: "西湖" },
+      { lat: 30.2339, lng: 120.1515, name: "灵隐寺" },
+      { lat: 30.2675, lng: 120.1520, name: "湖滨步行街" },
+    ];
+  }
+
+  if (destination.includes("三亚")) {
+    return [
+      { lat: 18.2517, lng: 109.5119, name: "亚龙湾" },
+      { lat: 18.2453, lng: 109.5119, name: "蜈支洲岛" },
+      { lat: 18.2720, lng: 109.4923, name: "南山寺" },
+    ];
+  }
+
+  // 默认返回一个通用配置
+  return [
+    { lat: 39.9042, lng: 116.4074, name: "市中心地标" },
+    { lat: 39.9163, lng: 116.3972, name: "历史文化街区" },
+    { lat: 39.9219, lng: 116.4431, name: "当地特色市场" },
+  ];
 }
 
 function pickStage(startDate: string, endDate: string): TripStage {

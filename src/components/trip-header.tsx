@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { SessionUser, TripDocument } from "@/lib/types";
 import { formatDateRange, getTripStageLabel } from "@/lib/utils";
 

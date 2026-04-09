@@ -13,9 +13,11 @@ type Message = {
 export async function requestCompletionText({
   messages,
   temperature = 0.6,
+  thinkingEnabled = false,
 }: {
   messages: Message[];
   temperature?: number;
+  thinkingEnabled?: boolean;
 }) {
   if (!appEnv.llmBaseUrl || !appEnv.llmApiKey) {
     throw new Error("LLM is not configured.");
@@ -33,6 +35,7 @@ export async function requestCompletionText({
         model: appEnv.llmModel,
         temperature,
         messages,
+        thinking_enabled: thinkingEnabled,
       }),
       cache: "no-store",
     },
