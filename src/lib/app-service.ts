@@ -14,6 +14,7 @@ import type {
   TripDocument,
   TripEvent,
   TripMember,
+  TripStage,
 } from "@/lib/types";
 import { createAvatarText, createId } from "@/lib/utils";
 
@@ -268,6 +269,46 @@ export async function requestMagicLink({
   });
 
   return verifyUrl.toString();
+}
+
+export async function updateTripStage(tripId: string, stage: TripStage) {
+  const repository = getRepository();
+  const trip = await repository.getTrip(tripId);
+
+  if (!trip) {
+    throw new Error("行程不存在");
+  }
+
+  const viewer = (await getSessionUser()) ?? getRepositoryFallbackUser();
+  assertCanMutateTrip(trip, viewer, repository.mode === "demo");
+
+  const nextTrip: TripDocument = {
+    ...trip,
+    stage,
+    events: [
+      makeEvent({
+        type: "trip_created",
+        actorName: viewer.name,
+        title: "行程已结束",
+        body: `${viewer.name} 将行程状态更新为已结束。`,
+      }),
+      ...trip.events,
+    ],
+    notifications: [
+      {
+        id: createId("notice"),
+        tripId: trip.id,
+        title: "行程状态已更新",
+        body: `${viewer.name} 将行程标记为已结束。`,
+        createdAt: new Date().toISOString(),
+      },
+      ...trip.notifications,
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+
+  await repository.saveTrip(nextTrip);
+  return nextTrip;
 }
 
 export async function consumeMagicLink(token: string) {

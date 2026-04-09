@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 
-import { ActivityFeed } from "@/components/activity-feed";
 import { MobileNav } from "@/components/mobile-nav";
 import { TaskBoard } from "@/components/task-board";
 import { TripHeader } from "@/components/trip-header";
 import { TripMembers } from "@/components/trip-members";
 import { TripOverview } from "@/components/trip-overview";
+import { MemoryView } from "@/components/memory-view";
 import { getTripWithViewer } from "@/lib/app-service";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
   }
 
   const viewParam = resolvedSearchParams.view;
-  const view = typeof viewParam === "string" ? viewParam : "tasks";
+  const view = typeof viewParam === "string" ? viewParam : "meeting";
   const canInvite =
     (currentUser?.email?.toLowerCase() ?? "aihe@example.com") ===
     trip.ownerEmail.toLowerCase();
@@ -40,7 +40,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
       {view === "companions" ? (
         <TripMembers trip={trip} canInvite={canInvite} />
       ) : null}
-      {view === "activity" ? <ActivityFeed trip={trip} /> : null}
+      {view === "meeting" ? <MemoryView trip={trip} /> : null}
 
       <MobileNav tripId={trip.id} />
     </main>

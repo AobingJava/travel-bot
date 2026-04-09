@@ -7,12 +7,12 @@ const items = [
   { key: "overview", label: "规划" },
   { key: "tasks", label: "任务" },
   { key: "companions", label: "旅伴" },
-  { key: "activity", label: "动态" },
+  { key: "meeting", label: "回忆" },
 ] as const;
 
 export function MobileNav({ tripId }: { tripId: string }) {
   const searchParams = useSearchParams();
-  const activeView = searchParams.get("view") ?? "tasks";
+  const activeView = searchParams.get("view") ?? "meeting";
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/60">
