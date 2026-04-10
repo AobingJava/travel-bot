@@ -15,6 +15,7 @@ export function TripOverview({ trip, canInvite }: { trip: TripDocument; canInvit
           packingList={trip.packingList}
           startDate={trip.startDate}
           endDate={trip.endDate}
+          packingCategoryLabels={trip.banner.packingCategoryLabels}
         />
       ) : null}
 

@@ -84,6 +84,34 @@ export interface TripDailySuggestion {
   summary: string;
 }
 
+export type PackingCategory =
+  | "core"
+  | "clothing"
+  | "electronics"
+  | "toiletries"
+  | "documents"
+  | "weather"
+  | "gear";
+
+export interface PackingSubItem {
+  id: string;
+  name: string;
+  checked?: boolean;
+  /** 建议携带数量（如一次性内裤件数） */
+  quantity?: number;
+  /** 数量说明，如「按 7 天行程」 */
+  quantityNote?: string;
+}
+
+export interface PackingListItem {
+  id: string;
+  name: string;
+  category: PackingCategory;
+  subItems?: PackingSubItem[];
+  checked?: boolean;
+  weatherDependent?: boolean;
+}
+
 export interface TripBanner {
   title: string;
   body: string;
@@ -91,6 +119,8 @@ export interface TripBanner {
   updatedAt: string;
   /** false 表示仅生成装备清单，完整任务/每日建议待 complete-plan 补全；缺省视为 true（历史数据） */
   fullPlanReady?: boolean;
+  /** 装备清单各大类标题覆盖（未设置的项仍用默认文案） */
+  packingCategoryLabels?: Partial<Record<PackingCategory, string>>;
 }
 
 export interface TripEvent {
@@ -116,34 +146,6 @@ export interface TripNotification {
   createdAt: string;
   readAt?: string;
 }
-
-export interface PackingListItem {
-  id: string;
-  name: string;
-  category: PackingCategory;
-  subItems?: PackingSubItem[];
-  checked?: boolean;
-  weatherDependent?: boolean;
-}
-
-export interface PackingSubItem {
-  id: string;
-  name: string;
-  checked?: boolean;
-  /** 建议携带数量（如一次性内裤件数） */
-  quantity?: number;
-  /** 数量说明，如「按 7 天行程」 */
-  quantityNote?: string;
-}
-
-export type PackingCategory =
-  | "core"
-  | "clothing"
-  | "electronics"
-  | "toiletries"
-  | "documents"
-  | "weather"
-  | "gear";
 
 export interface TripDocument {
   id: string;

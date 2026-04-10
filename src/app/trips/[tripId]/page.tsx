@@ -38,7 +38,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
 
   return (
     <main className="mx-auto flex w-full max-w-[430px] flex-col gap-4 px-4 pt-6 pb-28 sm:pt-10">
-      <TripHeader trip={trip} currentUser={currentUser} />
+      <TripHeader trip={trip} currentUser={currentUser} canEdit={canInvite} />
 
       {trip.banner.fullPlanReady === false ? <TripFullPlanLoader trip={trip} /> : null}
 

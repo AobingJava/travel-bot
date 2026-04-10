@@ -15,7 +15,7 @@ function subLineLabel(sub: { name: string; quantity?: number; quantityNote?: str
   const name = sub.name.trim();
   const note = sub.quantityNote?.trim();
   if (note) return `${name}（${note}）`;
-  if (sub.quantity != null) return `${name} ×${sub.quantity}`;
+  if (sub.quantity != null && sub.quantity > 1) return `${name} ×${sub.quantity}`;
   return name;
 }
 

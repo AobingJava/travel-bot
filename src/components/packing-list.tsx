@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PackingListItem } from "@/lib/types";
+import type { PackingCategory, PackingListItem } from "@/lib/types";
 import { TripPackingChecklist } from "@/components/trip-packing-checklist";
 
 interface PackingListProps {
@@ -12,6 +12,9 @@ export function PackingList({ tripId }: PackingListProps) {
   const [packingList, setPackingList] = useState<string[] | PackingListItem[] | undefined>(undefined);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [packingCategoryLabels, setPackingCategoryLabels] = useState<
+    Partial<Record<PackingCategory, string>> | undefined
+  >(undefined);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,6 +30,7 @@ export function PackingList({ tripId }: PackingListProps) {
         if (t) {
           setStartDate(t.startDate ?? "");
           setEndDate(t.endDate ?? "");
+          setPackingCategoryLabels(t.banner?.packingCategoryLabels);
         }
       })
       .catch(console.error)
@@ -60,6 +64,7 @@ export function PackingList({ tripId }: PackingListProps) {
       packingList={packingList}
       startDate={startDate || "2000-01-01"}
       endDate={endDate || startDate || "2000-01-01"}
+      packingCategoryLabels={packingCategoryLabels}
     />
   );
 }

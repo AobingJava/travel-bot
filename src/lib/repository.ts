@@ -8,7 +8,9 @@ import type {
   PackingListItem,
   SessionUser,
   TripDocument,
+  TripTask,
 } from "@/lib/types";
+import { tripDocumentWithoutPreTasks } from "@/lib/trip-task-filters";
 import { safeJsonParse } from "@/lib/utils";
 
 export interface AppRepository {
@@ -34,34 +36,32 @@ class DemoRepository implements AppRepository {
   }
 
   async listTrips() {
-    return structuredClone(getDemoState().trips);
+    return structuredClone(getDemoState().trips).map(tripDocumentWithoutPreTasks);
   }
 
   async getTrip(tripId: string) {
-    return (
-      structuredClone(
-        getDemoState().trips.find((trip) => trip.id === tripId) ?? null,
-      ) ?? null
-    );
+    const raw = getDemoState().trips.find((trip) => trip.id === tripId) ?? null;
+    return raw ? tripDocumentWithoutPreTasks(structuredClone(raw)) : null;
   }
 
   async saveTrip(nextTrip: TripDocument) {
+    const sanitized = tripDocumentWithoutPreTasks(nextTrip);
     const state = getDemoState();
     state.trips = state.trips.map((trip) =>
-      trip.id === nextTrip.id ? structuredClone(nextTrip) : trip,
+      trip.id === sanitized.id ? structuredClone(sanitized) : trip,
     );
   }
 
   async createTrip(trip: TripDocument) {
     const state = getDemoState();
-    state.trips.unshift(structuredClone(trip));
+    state.trips.unshift(structuredClone(tripDocumentWithoutPreTasks(trip)));
   }
 
   async findTripByTaskId(taskId: string) {
     const trip = getDemoState().trips.find((candidate) =>
       candidate.tasks.some((task) => task.id === taskId),
     );
-    return structuredClone(trip ?? null);
+    return trip ? tripDocumentWithoutPreTasks(structuredClone(trip)) : null;
   }
 
   async upsertMagicLink(record: MagicLinkRecord) {
@@ -85,7 +85,7 @@ class DemoRepository implements AppRepository {
   }
 
   async listTripsForCron() {
-    return structuredClone(getDemoState().trips);
+    return structuredClone(getDemoState().trips).map(tripDocumentWithoutPreTasks);
   }
 
   async deleteAllTrips() {
@@ -255,6 +255,7 @@ class D1Repository implements AppRepository {
   }
 
   async saveTrip(trip: TripDocument) {
+    const sanitized = tripDocumentWithoutPreTasks(trip);
     await this.query(
       `UPDATE trip_documents
        SET slug = ?, name = ?, destination = ?, start_date = ?, end_date = ?, traveler_count = ?,
@@ -263,30 +264,31 @@ class D1Repository implements AppRepository {
            packing_list_json = ?, updated_at = ?
        WHERE id = ?`,
       [
-        trip.slug,
-        trip.name,
-        trip.destination,
-        trip.startDate,
-        trip.endDate,
-        String(trip.travelerCount),
-        JSON.stringify(trip.themes),
-        trip.ownerEmail,
-        trip.ownerName,
-        trip.stage,
-        JSON.stringify(trip.tasks),
-        JSON.stringify(trip.members),
-        JSON.stringify(trip.dailySuggestions),
-        JSON.stringify(trip.banner),
-        JSON.stringify(trip.events),
-        JSON.stringify(trip.notifications),
-        JSON.stringify(trip.packingList ?? []),
-        trip.updatedAt,
-        trip.id,
+        sanitized.slug,
+        sanitized.name,
+        sanitized.destination,
+        sanitized.startDate,
+        sanitized.endDate,
+        String(sanitized.travelerCount),
+        JSON.stringify(sanitized.themes),
+        sanitized.ownerEmail,
+        sanitized.ownerName,
+        sanitized.stage,
+        JSON.stringify(sanitized.tasks),
+        JSON.stringify(sanitized.members),
+        JSON.stringify(sanitized.dailySuggestions),
+        JSON.stringify(sanitized.banner),
+        JSON.stringify(sanitized.events),
+        JSON.stringify(sanitized.notifications),
+        JSON.stringify(sanitized.packingList ?? []),
+        sanitized.updatedAt,
+        sanitized.id,
       ],
     );
   }
 
   async createTrip(trip: TripDocument) {
+    const sanitized = tripDocumentWithoutPreTasks(trip);
     await this.query(
       `INSERT INTO trip_documents (
         id, slug, name, destination, start_date, end_date, traveler_count,
@@ -295,33 +297,39 @@ class D1Repository implements AppRepository {
         packing_list_json, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        trip.id,
-        trip.slug,
-        trip.name,
-        trip.destination,
-        trip.startDate,
-        trip.endDate,
-        String(trip.travelerCount),
-        JSON.stringify(trip.themes),
-        trip.ownerEmail,
-        trip.ownerName,
-        trip.stage,
-        JSON.stringify(trip.tasks),
-        JSON.stringify(trip.members),
-        JSON.stringify(trip.dailySuggestions),
-        JSON.stringify(trip.banner),
-        JSON.stringify(trip.events),
-        JSON.stringify(trip.notifications),
-        JSON.stringify(trip.packingList ?? []),
-        trip.createdAt,
-        trip.updatedAt,
+        sanitized.id,
+        sanitized.slug,
+        sanitized.name,
+        sanitized.destination,
+        sanitized.startDate,
+        sanitized.endDate,
+        String(sanitized.travelerCount),
+        JSON.stringify(sanitized.themes),
+        sanitized.ownerEmail,
+        sanitized.ownerName,
+        sanitized.stage,
+        JSON.stringify(sanitized.tasks),
+        JSON.stringify(sanitized.members),
+        JSON.stringify(sanitized.dailySuggestions),
+        JSON.stringify(sanitized.banner),
+        JSON.stringify(sanitized.events),
+        JSON.stringify(sanitized.notifications),
+        JSON.stringify(sanitized.packingList ?? []),
+        sanitized.createdAt,
+        sanitized.updatedAt,
       ],
     );
   }
 
   async findTripByTaskId(taskId: string) {
-    const trips = await this.listTrips();
-    return trips.find((trip) => trip.tasks.some((task) => task.id === taskId)) ?? null;
+    const rows = await this.query<{ id: string; tasks_json: string }>(
+      "SELECT id, tasks_json FROM trip_documents",
+    );
+    const match = rows.find((row) => {
+      const tasks = safeJsonParse<TripTask[]>(row.tasks_json, []);
+      return tasks.some((task) => task.id === taskId);
+    });
+    return match ? this.getTrip(match.id) : null;
   }
 
   async upsertMagicLink(record: MagicLinkRecord) {
@@ -510,7 +518,7 @@ interface MagicLinkRow {
 }
 
 function mapTripRow(row: TripRow): TripDocument {
-  return {
+  return tripDocumentWithoutPreTasks({
     id: row.id,
     slug: row.slug,
     name: row.name,
@@ -543,7 +551,7 @@ function mapTripRow(row: TripRow): TripDocument {
       : {}),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
 }
 
 let repositoryInstance: AppRepository | undefined;

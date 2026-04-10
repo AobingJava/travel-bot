@@ -332,9 +332,11 @@ export async function generateFullPlanAndMergeIntoTrip(
       id: suggestion.id || createId("day"),
     })),
     banner: {
+      ...existing.banner,
       ...plan.banner,
       updatedAt: now,
       fullPlanReady: true,
+      packingCategoryLabels: existing.banner.packingCategoryLabels,
     },
     packingList: existing.packingList,
     events: [

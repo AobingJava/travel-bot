@@ -1,4 +1,5 @@
 import type { AppBootstrap, MagicLinkRecord, SessionUser, TripDocument } from "@/lib/types";
+import { tripDocumentWithoutPreTasks } from "@/lib/trip-task-filters";
 
 const demoUser: SessionUser = {
   email: "aihe@example.com",
@@ -33,7 +34,7 @@ export function getDemoBootstrap(currentUser: SessionUser | null): AppBootstrap 
     .filter((notice) => !notice.readAt).length;
 
   return {
-    trips: structuredClone(state.trips),
+    trips: structuredClone(state.trips).map(tripDocumentWithoutPreTasks),
     featuredTripId: state.trips[0]?.id,
     currentUser: currentUser ?? demoUser,
     unreadCount,

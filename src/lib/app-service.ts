@@ -15,6 +15,7 @@ import type {
   AppBootstrap,
   CreateTripInput,
   InviteMemberInput,
+  PackingCategory,
   SessionUser,
   TaskStatus,
   TripDocument,
@@ -328,6 +329,84 @@ export async function requestMagicLink({
   });
 
   return verifyUrl.toString();
+}
+
+const PACKING_CATEGORY_KEYS: PackingCategory[] = [
+  "core",
+  "documents",
+  "clothing",
+  "electronics",
+  "toiletries",
+  "weather",
+  "gear",
+];
+
+export async function updateTripBasicInfo(
+  tripId: string,
+  patch: Partial<{
+    name: string;
+    destination: string;
+    startDate: string;
+    endDate: string;
+    travelerCount: number;
+    stage: TripStage;
+    packingCategoryLabels: Partial<Record<PackingCategory, string | null>>;
+  }>,
+) {
+  const repository = getRepository();
+  const trip = await repository.getTrip(tripId);
+
+  if (!trip) {
+    throw new Error("行程不存在");
+  }
+
+  const viewer = (await getSessionUser()) ?? getRepositoryFallbackUser();
+  assertCanMutateTrip(trip, viewer, repository.mode === "demo");
+
+  const validStages: TripStage[] = ["draft", "planning", "ongoing", "completed"];
+  if (patch.stage != null && !validStages.includes(patch.stage)) {
+    throw new Error("无效的状态");
+  }
+
+  let nextBanner = trip.banner;
+  if (patch.packingCategoryLabels != null) {
+    const prev = trip.banner.packingCategoryLabels ?? {};
+    const merged: Partial<Record<PackingCategory, string>> = { ...prev };
+    for (const [rawKey, rawVal] of Object.entries(patch.packingCategoryLabels)) {
+      if (!PACKING_CATEGORY_KEYS.includes(rawKey as PackingCategory)) continue;
+      const key = rawKey as PackingCategory;
+      if (rawVal == null || String(rawVal).trim() === "") {
+        delete merged[key];
+      } else {
+        merged[key] = String(rawVal).trim();
+      }
+    }
+    nextBanner = {
+      ...trip.banner,
+      packingCategoryLabels: Object.keys(merged).length > 0 ? merged : undefined,
+    };
+  }
+
+  const nextTrip: TripDocument = {
+    ...trip,
+    name: typeof patch.name === "string" ? patch.name.trim() || trip.name : trip.name,
+    destination:
+      typeof patch.destination === "string"
+        ? patch.destination.trim() || trip.destination
+        : trip.destination,
+    startDate: typeof patch.startDate === "string" ? patch.startDate : trip.startDate,
+    endDate: typeof patch.endDate === "string" ? patch.endDate : trip.endDate,
+    travelerCount:
+      typeof patch.travelerCount === "number" && Number.isFinite(patch.travelerCount)
+        ? Math.max(1, Math.floor(patch.travelerCount))
+        : trip.travelerCount,
+    stage: patch.stage ?? trip.stage,
+    banner: nextBanner,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await repository.saveTrip(nextTrip);
+  return nextTrip;
 }
 
 export async function updateTripStage(tripId: string, stage: TripStage) {
