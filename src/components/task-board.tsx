@@ -168,7 +168,7 @@ export function TaskBoard({
         </div>
       </div>
 
-      <TripMap tasks={duringTasks} taskPhotos={taskPhotos} />
+      <TripMap tripId={tripId} tasks={duringTasks} taskPhotos={taskPhotos} />
 
       <div className="space-y-2">
         {visibleTasks.map((task) => (

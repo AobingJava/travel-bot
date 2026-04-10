@@ -50,7 +50,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
         <TripMembers trip={trip} currentUser={currentUser} />
       ) : null}
       {view === "meeting" ? <MemoryView trip={trip} /> : null}
-      {view === "map" ? <TripMap tasks={trip.tasks} /> : null}
+      {view === "map" ? <TripMap tripId={trip.id} tasks={trip.tasks} /> : null}
 
       <MobileNav tripId={trip.id} />
     </main>

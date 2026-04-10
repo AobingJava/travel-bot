@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { exportAmapCoverAndShare } from "@/lib/amap-screenshot-export";
 import { loadAmap } from "@/lib/amap-loader";
 import type { TripTask } from "@/lib/types";
 import { getTravelModeText } from "@/lib/utils";
@@ -9,6 +10,8 @@ import { getTravelModeText } from "@/lib/utils";
 type TripMapProps = {
   tasks: TripTask[];
   taskPhotos?: Record<string, string[]>;
+  /** 用于「存封面图」文件名与回忆页自动封面（localStorage） */
+  tripId?: string;
 };
 
 const labelColors: Record<string, string> = {
@@ -24,12 +27,13 @@ function getMarkerColor(label?: string) {
   return labelColors[label ?? "default"] ?? labelColors.default;
 }
 
-export function TripMap({ tasks, taskPhotos = {} }: TripMapProps) {
+export function TripMap({ tasks, taskPhotos = {}, tripId }: TripMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [photos, setPhotos] = useState<Record<string, string[]>>(taskPhotos);
+  const [exportingCover, setExportingCover] = useState(false);
 
   // 监听照片更新事件
   useEffect(() => {
@@ -210,6 +214,7 @@ export function TripMap({ tasks, taskPhotos = {} }: TripMapProps) {
           zoom: 11,
           resizeEnable: true,
           mapStyle: "amap://styles/whitesmoke",
+          WebGLParams: { preserveDrawingBuffer: true },
         });
 
         mapInstanceRef.current = map;
@@ -235,6 +240,26 @@ export function TripMap({ tasks, taskPhotos = {} }: TripMapProps) {
       }
     };
   }, [mapTasks, photos]);
+
+  async function exportMapCover() {
+    const map = mapInstanceRef.current;
+    if (!map || status !== "ready") return;
+    setExportingCover(true);
+    try {
+      const suffix = tripId?.slice(-8) ?? "map";
+      await exportAmapCoverAndShare({
+        map,
+        tripId,
+        downloadBaseName: `行程地图封面-${suffix}`,
+        shareTitle: "行程地图封面",
+      });
+    } catch (e) {
+      console.error("行程地图封面导出失败:", e);
+      window.alert("导出失败，请确认地图已加载完整后重试。");
+    } finally {
+      setExportingCover(false);
+    }
+  }
 
   if (mapTasks.length === 0) {
     return (
@@ -283,6 +308,23 @@ export function TripMap({ tasks, taskPhotos = {} }: TripMapProps) {
       </div>
 
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-100">
+        {status === "ready" ? (
+          <button
+            type="button"
+            onClick={() => void exportMapCover()}
+            disabled={exportingCover}
+            className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-full border border-white/90 bg-white/95 px-3 py-2 text-[11px] font-bold text-slate-800 shadow-md backdrop-blur-sm transition hover:bg-white disabled:opacity-60"
+          >
+            {exportingCover ? (
+              <span className="inline-block size-3 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-500" />
+            ) : (
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-7-7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            )}
+            {exportingCover ? "导出中…" : "存封面图"}
+          </button>
+        ) : null}
         <div ref={containerRef} style={{ height: 300, width: "100%" }} />
         {status === "loading" ? (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-50">

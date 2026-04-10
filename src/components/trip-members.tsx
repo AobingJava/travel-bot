@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { TripDocument, TripMember, MemberLocationStatus, SessionUser } from "@/lib/types";
+import { exportAmapCoverAndShare } from "@/lib/amap-screenshot-export";
 import { loadAmap } from "@/lib/amap-loader";
 
 const GREEN_BUDDY_REMINDER_AUDIO = {
@@ -29,10 +30,12 @@ function getAvatarUrl(index: number): string {
 
 // 高德地图容器组件
 function AMapComponent({
+  tripId,
   memberLocations,
   currentUser,
   onCallClick,
 }: {
+  tripId: string;
   memberLocations: MemberLocationStatus[];
   currentUser: SessionUser | null;
   onCallClick: (member: TripMember) => void;
@@ -42,6 +45,8 @@ function AMapComponent({
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [amapLoaded, setAmapLoaded] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const [exportingCover, setExportingCover] = useState(false);
 
   // 加载高德地图
   useEffect(() => {
@@ -73,14 +78,18 @@ function AMapComponent({
       const map = new window.AMap.Map(mapRef.current, {
         zoom: 12,
         center: userLocation ? [userLocation.lng, userLocation.lat] : [139.6917, 35.6895], // 默认东京
+        // 截图插件需要保留 WebGL 绘制缓冲，见 https://github.com/AMap-Web/amap-screenshot
+        WebGLParams: { preserveDrawingBuffer: true },
       });
       mapInstanceRef.current = map;
+      setMapReady(true);
     } catch (error) {
       console.error("初始化地图失败:", error);
       setLocationError("地图初始化失败");
     }
 
     return () => {
+      setMapReady(false);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.destroy();
         mapInstanceRef.current = null;
@@ -194,9 +203,45 @@ function AMapComponent({
     }
   }, [memberLocations, userLocation, currentUser]);
 
+  async function exportMapCover() {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    setExportingCover(true);
+    try {
+      await exportAmapCoverAndShare({
+        map,
+        tripId,
+        downloadBaseName: `旅伴地图封面-${tripId.slice(-8)}`,
+        shareTitle: "旅伴地图封面",
+      });
+    } catch (e) {
+      console.error("地图封面导出失败:", e);
+      window.alert("导出失败，请确认地图已加载完整后重试。");
+    } finally {
+      setExportingCover(false);
+    }
+  }
+
   return (
     <>
       <div className="relative h-[400px] w-full overflow-hidden rounded-2xl bg-slate-100">
+        {mapReady && (
+          <button
+            type="button"
+            onClick={() => void exportMapCover()}
+            disabled={exportingCover}
+            className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-full border border-white/90 bg-white/95 px-3 py-2 text-[11px] font-bold text-slate-800 shadow-md backdrop-blur-sm transition hover:bg-white disabled:opacity-60"
+          >
+            {exportingCover ? (
+              <span className="inline-block size-3 animate-spin rounded-full border-2 border-slate-300 border-t-orange-500" />
+            ) : (
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-7-7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            )}
+            {exportingCover ? "导出中…" : "存封面图"}
+          </button>
+        )}
         {locationError && !userLocation && (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
             <div className="text-center p-4">
@@ -428,7 +473,12 @@ export function TripMembers({
             </div>
           </div>
         ) : (
-          <AMapComponent memberLocations={memberLocations} currentUser={currentUser} onCallClick={handleCallClick} />
+          <AMapComponent
+            tripId={trip.id}
+            memberLocations={memberLocations}
+            currentUser={currentUser}
+            onCallClick={handleCallClick}
+          />
         )}
 
         {/* 提示等级选择器 - 一行三个 */}

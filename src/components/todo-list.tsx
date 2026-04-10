@@ -36,12 +36,8 @@ export function TodoList({ trip, canInvite }: { trip: TripDocument; canInvite: b
 
   return (
     <section className="space-y-3">
-      {/* 邀请好友卡片 */}
-      {canInvite && (
-        <article className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
-          <InviteMemberForm trip={trip} />
-        </article>
-      )}
+      {/* 卡片样式在 InviteMemberForm 根节点，此处不再套一层避免双边框 */}
+      {canInvite ? <InviteMemberForm trip={trip} /> : null}
 
       {trip.packingList && trip.packingList.length > 0 ? (
         <TripPackingChecklist

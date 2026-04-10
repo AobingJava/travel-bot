@@ -10,6 +10,7 @@ import {
   tripHasMarathonProfile,
 } from "@/lib/trip-marathon";
 import Link from "next/link";
+import { getTripMapCoverDataUrl } from "@/lib/amap-screenshot-export";
 
 interface MemoryResultViewProps {
   trip: TripDocument;
@@ -57,9 +58,15 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
   const [generatedCards, setGeneratedCards] = useState<SocialCardProps[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [attractionsWithPhotos, setAttractionsWithPhotos] = useState<Attraction[]>([]);
+  /** 行程/旅伴地图「存封面图」写入 localStorage，生成卡片时优先作封面 */
+  const [savedMapCoverUrl, setSavedMapCoverUrl] = useState<string | null>(null);
 
   const attractions = extractAttractionsFromTrip(trip);
   const packingRows = useMemo(() => tripPackingToSelectableRows(trip.packingList), [trip.packingList]);
+
+  useEffect(() => {
+    setSavedMapCoverUrl(getTripMapCoverDataUrl(trip.id));
+  }, [trip.id]);
 
   const needsPickingGear = packingRows.length > 0;
   const canGenerate =
@@ -143,7 +150,7 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
       attractions: selectedWithPhotos,
       tripName: trip.name,
       destination: trip.destination,
-      coverImage: selectedWithPhotos[0]?.images?.[0],
+      coverImage: savedMapCoverUrl ?? selectedWithPhotos[0]?.images?.[0],
       marathonMode,
       marathonTagContext: trip.customTags,
       selectedPackingTexts: packingTexts,
@@ -431,6 +438,11 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
               将为以下 {selectedAttractions.length} 个景点
               {packingRows.length > 0 ? ` 与 ${selectedPackingIds.length} 条装备` : ""} 生成小红书风格正文（可复制全文）：
             </p>
+            {savedMapCoverUrl ? (
+              <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-[12px] text-emerald-800">
+                已检测到你在行程/旅伴地图保存的截图，将优先作为卡片封面图（发布小红书时再选同一张作笔记封面即可）。
+              </p>
+            ) : null}
             <ul className="mt-3 space-y-1">
               {selectedAttractions.map((attraction) => (
                 <li key={attraction.id} className="text-sm text-slate-700">
@@ -511,6 +523,7 @@ function MarathonSocialCard({
   marathonTagContext,
   selectedPackingTexts,
   cardPlainText,
+  coverImage,
 }: Pick<
   SocialCardProps,
   | "attractions"
@@ -519,11 +532,13 @@ function MarathonSocialCard({
   | "marathonTagContext"
   | "selectedPackingTexts"
   | "cardPlainText"
+  | "coverImage"
 >) {
   const allImages = attractions.flatMap((a) =>
     a.images && a.images.length > 0 ? a.images.map((url) => ({ url, caption: a.name })) : [],
   );
   const hero =
+    coverImage ??
     allImages[0]?.url ??
     "https://images.unsplash.com/photo-1452626038306-9aae5e071dd3?w=800&h=1000&fit=crop";
   const hashtagTokens = buildMarathonHashtagLine(destination, marathonTagContext).split(/\s+/).filter(Boolean);
@@ -582,6 +597,7 @@ function SocialCard({
   attractions,
   tripName,
   destination,
+  coverImage,
   marathonMode,
   marathonTagContext,
   selectedPackingTexts,
@@ -598,6 +614,7 @@ function SocialCard({
         marathonTagContext={marathonTagContext}
         selectedPackingTexts={selectedPackingTexts}
         cardPlainText={cardPlainText}
+        coverImage={coverImage}
       />
     );
   }
@@ -609,10 +626,19 @@ function SocialCard({
       : []
   );
 
-  // 如果没有照片，使用默认图片
-  const images = allImages.length > 0
-    ? allImages
-    : [{ url: `https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&h=1000&fit=crop`, caption: tripName }];
+  const baseSlides =
+    allImages.length > 0
+      ? allImages
+      : [
+          {
+            url: `https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&h=1000&fit=crop`,
+            caption: tripName,
+          },
+        ];
+
+  const images = coverImage
+    ? [{ url: coverImage, caption: "行程地图" }, ...baseSlides.filter((s) => s.url !== coverImage)]
+    : baseSlides;
 
   const heroUrl =
     images[currentImageIndex]?.url ||
