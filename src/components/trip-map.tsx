@@ -27,6 +27,18 @@ function getMarkerColor(label?: string) {
   return labelColors[label ?? "default"] ?? labelColors.default;
 }
 
+/** 高德地图实例在运行时的最小形状（避免 any） */
+type AMapRuntimeMap = {
+  clearMap: () => void;
+  add: (overlays: unknown | unknown[]) => void;
+  setFitView: (
+    overlays: unknown[],
+    immediate?: boolean,
+    padding?: [number, number, number, number],
+  ) => void;
+  destroy: () => void;
+};
+
 export function TripMap({ tasks, taskPhotos = {}, tripId }: TripMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
@@ -76,7 +88,7 @@ export function TripMap({ tasks, taskPhotos = {}, tripId }: TripMapProps) {
     if (!mapInstanceRef.current) return;
 
     const AMap = window.AMap;
-    const map = mapInstanceRef.current as any;
+    const map = mapInstanceRef.current as AMapRuntimeMap;
 
     map.clearMap();
 
@@ -217,7 +229,7 @@ export function TripMap({ tasks, taskPhotos = {}, tripId }: TripMapProps) {
           WebGLParams: { preserveDrawingBuffer: true },
         });
 
-        mapInstanceRef.current = map;
+        mapInstanceRef.current = map as AMapRuntimeMap;
         renderMapMarkers();
         setStatus("ready");
       })

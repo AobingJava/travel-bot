@@ -76,7 +76,7 @@ export async function PATCH(
       return NextResponse.json({ error: "invalid data" }, { status: 400 });
     }
 
-    let packingList = getPackingListMemoryStore().get(tripId) || trip.packingList || [];
+    const packingList = getPackingListMemoryStore().get(tripId) || trip.packingList || [];
 
     const updatedList = packingList.map((item) => {
       if (typeof item === "string" || item.id !== itemId) {

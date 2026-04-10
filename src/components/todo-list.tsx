@@ -37,7 +37,7 @@ export function TodoList({ trip, canInvite }: { trip: TripDocument; canInvite: b
   return (
     <section className="space-y-3">
       {/* 卡片样式在 InviteMemberForm 根节点，此处不再套一层避免双边框 */}
-      {canInvite ? <InviteMemberForm trip={trip} /> : null}
+      {canInvite ? <InviteMemberForm key={trip.id} trip={trip} /> : null}
 
       {trip.packingList && trip.packingList.length > 0 ? (
         <TripPackingChecklist

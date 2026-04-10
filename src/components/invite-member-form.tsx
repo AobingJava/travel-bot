@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import type { TripDocument } from "@/lib/types";
 import { getThemeLabel } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 function daysUntil(dateString: string): number {
   const now = new Date();
@@ -26,18 +26,15 @@ function getAvatarUrl(index: number): string {
   return avatarUrls[index % avatarUrls.length];
 }
 
+function readTripInvitedFlag(tripId: string): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(`trip_${tripId}_invited`) === "true";
+}
+
 export function InviteMemberForm({ trip }: { trip: TripDocument }) {
   const pathname = usePathname();
-  const [hasInvited, setHasInvited] = useState(false);
+  const [hasInvited, setHasInvited] = useState(() => readTripInvitedFlag(trip.id));
   const daysLeft = daysUntil(trip.startDate);
-
-  useEffect(() => {
-    // 检查是否已经邀请过
-    const invited = localStorage.getItem(`trip_${trip.id}_invited`);
-    if (invited === "true") {
-      setHasInvited(true);
-    }
-  }, [trip.id]);
 
   const inviteUrl = typeof window !== "undefined"
     ? `${window.location.origin}${pathname}`

@@ -28,8 +28,10 @@ export function TripFullPlanLoader({
       return;
     }
     ran.current = true;
-    setStatus("loading");
-    setErrMsg(null);
+    queueMicrotask(() => {
+      setStatus("loading");
+      setErrMsg(null);
+    });
 
     void (async () => {
       try {

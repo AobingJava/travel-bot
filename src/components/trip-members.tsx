@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { TripDocument, TripMember, MemberLocationStatus, SessionUser } from "@/lib/types";
+
+type MemberMapInstance = {
+  clearMap: () => void;
+  destroy: () => void;
+  setCenter: (lngLat: [number, number]) => void;
+};
 import { exportAmapCoverAndShare } from "@/lib/amap-screenshot-export";
 import { loadAmap } from "@/lib/amap-loader";
 
@@ -41,7 +47,7 @@ function AMapComponent({
   onCallClick: (member: TripMember) => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
+  const mapInstanceRef = useRef<MemberMapInstance | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [amapLoaded, setAmapLoaded] = useState(false);
@@ -81,7 +87,7 @@ function AMapComponent({
         // 截图插件需要保留 WebGL 绘制缓冲，见 https://github.com/AMap-Web/amap-screenshot
         WebGLParams: { preserveDrawingBuffer: true },
       });
-      mapInstanceRef.current = map;
+      mapInstanceRef.current = map as MemberMapInstance;
       setMapReady(true);
     } catch (error) {
       console.error("初始化地图失败:", error);
@@ -580,9 +586,10 @@ export function TripMembers({
   );
 }
 
-// 扩展 Window 接口以包含 AMap
+// 扩展 Window 接口以包含 AMap（运行时由高德脚本注入）
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 高德 JS SDK 无完整类型
     AMap: any;
   }
 }

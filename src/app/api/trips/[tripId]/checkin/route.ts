@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { TripTask } from "@/lib/types";
 import { createId } from "@/lib/utils";
 import { getFallbackMapPins } from "@/lib/planner";
 
+type StoredCheckinTask = TripTask & { isUserCheckin?: boolean };
+
 // 内存存储用户打卡点
-const checkinTasks = new Map<string, any[]>();
+const checkinTasks = new Map<string, StoredCheckinTask[]>();
 
 export async function POST(
   request: NextRequest,

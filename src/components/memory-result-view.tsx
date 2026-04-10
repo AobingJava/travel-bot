@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useSyncExternalStore } from "react";
 import { TripDocument, Attraction, SessionUser } from "@/lib/types";
 import { buildXhsPlainText, tripPackingToSelectableRows } from "@/lib/packing-format";
 import {
@@ -58,15 +58,15 @@ export function MemoryResultView({ trip, currentUser }: MemoryResultViewProps) {
   const [generatedCards, setGeneratedCards] = useState<SocialCardProps[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [attractionsWithPhotos, setAttractionsWithPhotos] = useState<Attraction[]>([]);
-  /** 行程/旅伴地图「存封面图」写入 localStorage，生成卡片时优先作封面 */
-  const [savedMapCoverUrl, setSavedMapCoverUrl] = useState<string | null>(null);
 
   const attractions = extractAttractionsFromTrip(trip);
   const packingRows = useMemo(() => tripPackingToSelectableRows(trip.packingList), [trip.packingList]);
 
-  useEffect(() => {
-    setSavedMapCoverUrl(getTripMapCoverDataUrl(trip.id));
-  }, [trip.id]);
+  const savedMapCoverUrl = useSyncExternalStore(
+    () => () => {},
+    () => getTripMapCoverDataUrl(trip.id),
+    () => null,
+  );
 
   const needsPickingGear = packingRows.length > 0;
   const canGenerate =

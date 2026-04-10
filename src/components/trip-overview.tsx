@@ -7,7 +7,7 @@ import { TripPackingChecklist } from "@/components/trip-packing-checklist";
 export function TripOverview({ trip, canInvite }: { trip: TripDocument; canInvite: boolean }) {
   return (
     <section className="space-y-3">
-      {canInvite && <InviteMemberForm trip={trip} />}
+      {canInvite && <InviteMemberForm key={trip.id} trip={trip} />}
 
       {trip.packingList && trip.packingList.length > 0 ? (
         <TripPackingChecklist
